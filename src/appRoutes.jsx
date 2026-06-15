@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import Loader from "./components/common/Loader";
+import Loader from "./components/Loader";
 
 // Auth Pages
 import Login from "./pages/auth/Login";

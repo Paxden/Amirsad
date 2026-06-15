@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Form, Button, Container, Row, Col, Card } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
-import Alert from "../../components/Common/Alert";
+import Alert from "../../components/Alert";
 import { FiUser, FiMail, FiPhone, FiLock, FiUserCheck } from "react-icons/fi";
 
 const Register = () => {
