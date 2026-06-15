@@ -109,7 +109,7 @@ const Sidebar = ({ isOpen, mobileOpen, onClose }) => {
         </div>
       </aside>
 
-      <style jsx>{`
+      <style>{`
         .sidebar {
           position: fixed;
           left: 0;

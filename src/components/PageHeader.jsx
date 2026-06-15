@@ -23,7 +23,7 @@ const PageHeader = ({ title, breadcrumbs, actions }) => {
       </div>
       {actions && <div className="page-header-actions">{actions}</div>}
 
-      <style jsx>{`
+      <style>{`
         .page-header {
           display: flex;
           justify-content: space-between;

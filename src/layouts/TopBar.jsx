@@ -132,7 +132,7 @@ const Topbar = ({ onMenuClick }) => {
         </Dropdown>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .topbar {
           position: fixed;
           top: 0;

@@ -3,8 +3,8 @@
 import  { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Container,  } from "react-bootstrap";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import Sidebar from "./SideBar";
+import Topbar from "./TopBar";
 import { useAuth } from "../context/AuthContext";
 
 const DashboardLayout = () => {
