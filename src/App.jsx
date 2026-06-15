@@ -2,7 +2,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
-import AppRoutes from "./routes/AppRoutes.jsx";
+import AppRoutes from "./appRoutes.jsx";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles/globals.css";
 import "./styles/theme.css";

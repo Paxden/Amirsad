@@ -1,48 +1,48 @@
 /* eslint-disable no-unused-vars */
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import Loader from "../components/common/Loader";
+import { useAuth } from "./context/AuthContext";
+import Loader from "./components/common/Loader";
 
 // Auth Pages
-import Login from "../pages/auth/Login";
-import Register from "../pages/auth/Register";
-import VerifyEmail from "../pages/auth/VerifyEmail";
-import ForgotPassword from "../pages/auth/ForgotPassword";
-import ResetPassword from "../pages/auth/ResetPassword";
-import ResendVerification from "../pages/auth/ResendVerification";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import VerifyEmail from "./pages/auth/VerifyEmail";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import ResendVerification from "./pages/auth/ResendVerification";
 
 // Layouts
-import DashboardLayout from "../layouts/DashboardLayout";
+import DashboardLayout from "./layouts/DashboardLayout";
 
 // Admin Pages
-import AdminDashboard from "../pages/dashboard/AdminDashboard";
-import Users from "../pages/admin/Users";
-import AdminInventory from "../pages/admin/Inventory";
-import AdminRFQs from "../pages/admin/AdminRFQs";
-import KYCReview from "../pages/admin/KYCReview";
-import AdminAppointments from "../pages/admin/Appointments";
-import AdminDeals from "../pages/admin/Deals";
-import AdminReports from "../pages/admin/Reports";
-import AdminSettings from "../pages/admin/Settings";
+import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import Users from "./pages/admin/Users";
+import AdminInventory from "./pages/admin/Inventory";
+import AdminRFQs from "./pages/admin/AdminRFQs";
+import KYCReview from "./pages/admin/KYCReview";
+import AdminAppointments from "./pages/admin/Appointments";
+import AdminDeals from "./pages/admin/Deals";
+import AdminReports from "./pages/admin/Reports";
+import AdminSettings from "./pages/admin/Settings";
 
 // Staff Pages
-import StaffDashboard from "../pages/dashboard/StaffDashboard";
-import StaffRFQReview from "../pages/staff/RFQReview";
-import StaffInventory from "../pages/staff/Inventory";
+import StaffDashboard from "./pages/dashboard/StaffDashboard";
+import StaffRFQReview from "./pages/staff/RFQReview";
+import StaffInventory from "./pages/staff/Inventory";
 
 // Supplier Pages
-import SupplierDashboard from "../pages/dashboard/SupplierDashboard";
-import SupplierOpportunities from "../pages/supplier/Opportunities";
-import SupplierInventory from "../pages/supplier/Inventory";
-import SupplierRFQsReceived from "../pages/supplier/RFQsReceived";
-import SupplierAppointments from "../pages/supplier/Appointments";
-import SupplierDeals from "../pages/supplier/Deals";
-import SupplierKYCStatus from "../pages/supplier/KYCStatus";
-import SupplierProfile from "../pages/supplier/Profile";
+import SupplierDashboard from "./pages/dashboard/SupplierDashboard";
+import SupplierOpportunities from "./pages/supplier/Opportunities";
+import SupplierInventory from "./pages/supplier/Inventory";
+import SupplierRFQsReceived from "./pages/supplier/RFQsReceived";
+import SupplierAppointments from "./pages/supplier/Appointments";
+import SupplierDeals from "./pages/supplier/Deals";
+import SupplierKYCStatus from "./pages/supplier/KYCStatus";
+import SupplierProfile from "./pages/supplier/Profile";
 
 
 // Buyer Pages
-import BuyerDashboard from "../pages/dashboard/BuyerDashboard";
+import BuyerDashboard from "./pages/dashboard/BuyerDashboard";
 
 const AppRoutes = () => {
   const { user, loading, isAuthenticated } = useAuth();
