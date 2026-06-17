@@ -47,7 +47,7 @@ import BuyerInventory from "./pages/buyer/Inventory";
 import BuyerMyRFQs from "./pages/buyer/MyRFQs";
 import BuyerAppointments from "./pages/buyer/Appointments";
 import BuyerMyDeals from "./pages/buyer/MyDeals";
-import BuyerWishlist from "./pages/buyer/Wishlist";
+import BuyerWishlist from "./pages/buyer/Saved";
 import BuyerProfile from "./pages/buyer/Profile";
 
 const AppRoutes = () => {
@@ -182,6 +182,7 @@ const AppRoutes = () => {
           <Route path="/buyer/rfqs" element={<BuyerMyRFQs />} />
           <Route path="/buyer/appointments" element={<BuyerAppointments />} />
           <Route path="/buyer/deals" element={<BuyerMyDeals />} />
+          <Route path="/buyer/wishlist" element={<BuyerWishlist />} />
           <Route path="/buyer/profile" element={<BuyerProfile />} />
 
           <Route
