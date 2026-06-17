@@ -103,7 +103,7 @@ const AdminDeals = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/deals/admin/stats`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/deals/stats`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

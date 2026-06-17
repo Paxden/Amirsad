@@ -93,7 +93,7 @@ export const dealsApi = {
 
   // Get deal statistics (admin/staff only)
   getDealStats: async () => {
-    const response = await axios.get("/deals/admin/stats");
+    const response = await axios.get("/deals/stats");
     return response.data;
   },
 

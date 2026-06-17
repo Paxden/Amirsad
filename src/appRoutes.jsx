@@ -24,6 +24,7 @@ import AdminAppointments from "./pages/admin/Appointments";
 import AdminDeals from "./pages/admin/Deals";
 import AdminReports from "./pages/admin/Reports";
 import AdminSettings from "./pages/admin/Settings";
+import AdminOpportunities from "./pages/admin/Opportunity";
 
 // Staff Pages
 import StaffDashboard from "./pages/dashboard/StaffDashboard";
@@ -40,9 +41,14 @@ import SupplierDeals from "./pages/supplier/Deals";
 import SupplierKYCStatus from "./pages/supplier/KYCStatus";
 import SupplierProfile from "./pages/supplier/Profile";
 
-
 // Buyer Pages
 import BuyerDashboard from "./pages/dashboard/BuyerDashboard";
+import BuyerInventory from "./pages/buyer/Inventory";
+import BuyerMyRFQs from "./pages/buyer/MyRFQs";
+import BuyerAppointments from "./pages/buyer/Appointments";
+import BuyerMyDeals from "./pages/buyer/MyDeals";
+import BuyerWishlist from "./pages/buyer/Wishlist";
+import BuyerProfile from "./pages/buyer/Profile";
 
 const AppRoutes = () => {
   const { user, loading, isAuthenticated } = useAuth();
@@ -83,12 +89,13 @@ const AppRoutes = () => {
           />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/opportunities" element={<AdminOpportunities />} />
+
           <Route path="/admin/inventory" element={<AdminInventory />} />
           <Route path="/admin/rfqs" element={<AdminRFQs />} />
           <Route path="/admin/kyc-review" element={<KYCReview />} />
           <Route path="/admin/appointments" element={<AdminAppointments />} />
           <Route path="/admin/deals" element={<AdminDeals />} />
-
           <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
 
@@ -150,6 +157,7 @@ const AppRoutes = () => {
           <Route path="/supplier/deals" element={<SupplierDeals />} />
           <Route path="/supplier/kyc" element={<SupplierKYCStatus />} />
           <Route path="/supplier/profile" element={<SupplierProfile />} />
+          <Route path="/buyer/wishlist" element={<BuyerWishlist />} />
 
           <Route
             path="*"
@@ -170,6 +178,12 @@ const AppRoutes = () => {
             element={<Navigate to="/buyer/dashboard" replace />}
           />
           <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
+          <Route path="/buyer/inventory" element={<BuyerInventory />} />
+          <Route path="/buyer/rfqs" element={<BuyerMyRFQs />} />
+          <Route path="/buyer/appointments" element={<BuyerAppointments />} />
+          <Route path="/buyer/deals" element={<BuyerMyDeals />} />
+          <Route path="/buyer/profile" element={<BuyerProfile />} />
+
           <Route
             path="*"
             element={<Navigate to="/buyer/dashboard" replace />}

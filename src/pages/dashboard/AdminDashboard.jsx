@@ -20,7 +20,7 @@ import {
   FiPackage,
   FiFileText,
   FiCalendar,
-  FiDollarSign,
+  FiHash,
   FiTrendingUp,
   FiTrendingDown,
   FiRefreshCw,
@@ -166,7 +166,7 @@ const AdminDashboard = () => {
     {
       title: "Completed Deals",
       value: data?.rfqs?.accepted || 0,
-      icon: FiDollarSign,
+      icon: FiHash,
       color: "success",
       trend: "+15%",
       trendUp: true,
@@ -183,8 +183,8 @@ const AdminDashboard = () => {
     },
     {
       title: "Total Transaction Value",
-      value: `$${((data?.financial?.totalTransactionValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiDollarSign,
+      value: `#${((data?.financial?.totalTransactionValue || 0) / 1000000).toFixed(2)}M`,
+      icon: FiHash,
       color: "success",
       trend: "+23%",
       trendUp: true,

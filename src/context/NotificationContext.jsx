@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { createContext, useState, useContext, useEffect } from "react";
+import { createContext, useState, useContext, useEffect } from "react";
 import io from "socket.io-client";
 import { toast } from "react-hot-toast";
 import { useAuth } from "./AuthContext";
@@ -11,7 +11,9 @@ const NotificationContext = createContext();
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
   if (!context) {
-    throw new Error("useNotifications must be used within NotificationProvider");
+    throw new Error(
+      "useNotifications must be used within NotificationProvider",
+    );
   }
   return context;
 };
@@ -34,10 +36,18 @@ export const NotificationProvider = ({ children }) => {
   }, [isAuthenticated, user]);
 
   const initializeSocket = () => {
+    if (!io) return;
+
     const token = localStorage.getItem("token");
-    const socketInstance = io(import.meta.env.VITE_API_URL || "http://localhost:5000", {
-      auth: { token },
-    });
+    const socketInstance = io(
+      import.meta.env.VITE_SOCKET_URL || "http://localhost:5000",
+      {
+        auth: { token },
+        transports: ["websocket", "polling"],
+        withCredentials: true,
+        path: "/socket.io",
+      },
+    );
 
     socketInstance.on("connect", () => {
       console.log("Socket connected");
@@ -46,7 +56,7 @@ export const NotificationProvider = ({ children }) => {
     socketInstance.on("new_notification", (data) => {
       setNotifications((prev) => [data.notification, ...prev]);
       setUnreadCount(data.unreadCount);
-      
+
       // Show toast notification
       toast(data.notification.title, {
         description: data.notification.message,
@@ -97,8 +107,8 @@ export const NotificationProvider = ({ children }) => {
       });
       setNotifications((prev) =>
         prev.map((n) =>
-          n._id === notificationId ? { ...n, isRead: true } : n
-        )
+          n._id === notificationId ? { ...n, isRead: true } : n,
+        ),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
@@ -114,9 +124,7 @@ export const NotificationProvider = ({ children }) => {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true }))
-      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error("Failed to mark all as read:", error);

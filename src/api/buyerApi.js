@@ -58,8 +58,8 @@ export const buyerApi = {
 
   // Inventory Viewing
   getAvailableInventory: async (params = {}) => {
-    const response = await axios.get("/inventory", { 
-      params: { ...params, status: "available" } 
+    const response = await axios.get("/inventory", {
+      params: { ...params, status: "available" },
     });
     return response.data;
   },
@@ -125,7 +125,9 @@ export const buyerApi = {
   },
 
   getMessages: async (userId, params = {}) => {
-    const response = await axios.get(`/messages/conversation/${userId}`, { params });
+    const response = await axios.get(`/messages/conversation/${userId}`, {
+      params,
+    });
     return response.data;
   },
 
@@ -142,6 +144,47 @@ export const buyerApi = {
 
   getPreferences: async () => {
     const response = await axios.get("/buyers/preferences");
+    return response.data;
+  },
+  // Admin/Staff - Get all buyers
+  getAllBuyers: async (params = {}) => {
+    const response = await axios.get("/admin/buyers", { params });
+    return response.data;
+  },
+
+  // Admin/Staff - Get buyer by ID
+  getBuyerById: async (id) => {
+    const response = await axios.get(`/admin/buyers/${id}`);
+    return response.data;
+  },
+
+  // Admin/Staff - Approve buyer
+  approveBuyer: async (id, data = {}) => {
+    const response = await axios.put(`/admin/users/${id}/approve`, data);
+    return response.data;
+  },
+
+  // Admin/Staff - Reject buyer
+  rejectBuyer: async (id, data) => {
+    const response = await axios.put(`/admin/users/${id}/reject`, data);
+    return response.data;
+  },
+
+  // Admin/Staff - Suspend buyer
+  suspendBuyer: async (id, data) => {
+    const response = await axios.put(`/admin/users/${id}/suspend`, data);
+    return response.data;
+  },
+
+  // Admin/Staff - Activate buyer
+  activateBuyer: async (id) => {
+    const response = await axios.put(`/admin/users/${id}/activate`);
+    return response.data;
+  },
+
+  // Admin/Staff - Delete buyer
+  deleteBuyer: async (id) => {
+    const response = await axios.delete(`/admin/users/${id}`);
     return response.data;
   },
 };

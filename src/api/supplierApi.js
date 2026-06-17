@@ -12,6 +12,12 @@ export const supplierApi = {
     return response.data;
   },
 
+  // Admin/Staff - Get all suppliers
+  getAllSuppliers: async (params = {}) => {
+    const response = await axios.get("/admin/suppliers", { params });
+    return response.data;
+  },
+
   // KYC
   submitKYC: async (formData) => {
     const response = await axios.post("/suppliers/submit-kyc", formData, {
@@ -105,8 +111,42 @@ export const supplierApi = {
     const response = await axios.get("/dashboard/supplier");
     return response.data;
   },
+
+  // Admin/Staff - Get supplier by ID
+  getSupplierById: async (id) => {
+    const response = await axios.get(`/admin/suppliers/${id}`);
+    return response.data;
+  },
+
+  // Admin/Staff - Approve supplier
+  approveSupplier: async (id, data = {}) => {
+    const response = await axios.put(`/admin/users/${id}/approve`, data);
+    return response.data;
+  },
+
+  // Admin/Staff - Reject supplier
+  rejectSupplier: async (id, data) => {
+    const response = await axios.put(`/admin/users/${id}/reject`, data);
+    return response.data;
+  },
+
+  // Admin/Staff - Suspend supplier
+  suspendSupplier: async (id, data) => {
+    const response = await axios.put(`/admin/users/${id}/suspend`, data);
+    return response.data;
+  },
+
+  // Admin/Staff - Activate supplier
+  activateSupplier: async (id) => {
+    const response = await axios.put(`/admin/users/${id}/activate`);
+    return response.data;
+  },
+
+  // Admin/Staff - Delete supplier
+  deleteSupplier: async (id) => {
+    const response = await axios.delete(`/admin/users/${id}`);
+    return response.data;
+  },
 };
-
-
 
 export default supplierApi;

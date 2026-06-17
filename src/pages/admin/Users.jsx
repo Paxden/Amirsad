@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
 /* eslint-disable no-unused-vars */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -33,6 +33,8 @@ import {
   FiMail,
   FiPhone,
   FiCalendar,
+  FiLock,
+  FiBriefcase,
 } from "react-icons/fi";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
@@ -53,7 +55,10 @@ const Users = () => {
     phone: "",
     role: "supplier",
     password: "",
+    confirmPassword: "",
   });
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -87,6 +92,85 @@ const Users = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.fullName || formData.fullName.trim().length < 2) {
+      errors.fullName =
+        "Full name is required and must be at least 2 characters";
+    }
+    if (!formData.email) {
+      errors.email = "Email is required";
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+    if (!formData.password) {
+      errors.password = "Password is required";
+    } else if (formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/users/staff`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            role: formData.role,
+            password: formData.password,
+          }),
+        },
+      );
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`${formData.role} created successfully!`);
+        setShowUserModal(false);
+        resetForm();
+        fetchUsers();
+      } else {
+        toast.error(data.message || "Failed to create user");
+      }
+    } catch (error) {
+      console.error("Failed to create user:", error);
+      toast.error(error.response?.data?.message || "Failed to create user");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      fullName: "",
+      email: "",
+      phone: "",
+      role: "supplier",
+      password: "",
+      confirmPassword: "",
+    });
+    setFormErrors({});
   };
 
   const handleApproveUser = async (userId) => {
@@ -215,7 +299,7 @@ const Users = () => {
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <p className="text-muted mb-1 small">Total Users in</p>
+                  <p className="text-muted mb-1 small">Total Users</p>
                   <h3 className="fw-bold mb-0">{stats.total}</h3>
                 </div>
                 <div className="bg-primary bg-opacity-10 p-3 rounded">
@@ -495,6 +579,169 @@ const Users = () => {
             Close
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      {/* Add User Modal */}
+      <Modal
+        show={showUserModal}
+        onHide={() => {
+          setShowUserModal(false);
+          resetForm();
+        }}
+        size="lg"
+        backdrop="static"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FiUserPlus className="me-2" />
+            Add New User
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleAddUser}>
+          <Modal.Body>
+            <Alert variant="info">
+              <small>
+                <strong>Note:</strong> This will create a new user account. The
+                user will receive a welcome email with login instructions.
+              </small>
+            </Alert>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Full Name *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter full name"
+                    value={formData.fullName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, fullName: e.target.value })
+                    }
+                    isInvalid={!!formErrors.fullName}
+                  />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.fullName}
+                  </Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Email Address *</Form.Label>
+                  <Form.Control
+                    type="email"
+                    placeholder="Enter email address"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    isInvalid={!!formErrors.email}
+                  />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.email}
+                  </Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Phone Number</Form.Label>
+                  <Form.Control
+                    type="tel"
+                    placeholder="Enter phone number"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Role *</Form.Label>
+                  <Form.Select
+                    value={formData.role}
+                    onChange={(e) =>
+                      setFormData({ ...formData, role: e.target.value })
+                    }
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="staff">Staff</option>
+                    <option value="supplier">Supplier</option>
+                    <option value="buyer">Buyer</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Password *</Form.Label>
+                  <Form.Control
+                    type="password"
+                    placeholder="Enter password (min 6 chars)"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    isInvalid={!!formErrors.password}
+                  />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.password}
+                  </Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Confirm Password *</Form.Label>
+                  <Form.Control
+                    type="password"
+                    placeholder="Confirm password"
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    isInvalid={!!formErrors.confirmPassword}
+                  />
+                  <Form.Control.Feedback type="invalid">
+                    {formErrors.confirmPassword}
+                  </Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Alert variant="warning" className="mt-2">
+              <small>
+                <FiLock className="me-2" />
+                <strong>Security:</strong> The user will need to change their
+                password on first login.
+              </small>
+            </Alert>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowUserModal(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="warning" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <FiUserPlus className="me-2" />
+                  Create User
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
       </Modal>
 
       <style jsx>{`

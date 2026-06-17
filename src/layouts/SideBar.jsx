@@ -24,6 +24,7 @@ const Sidebar = ({ isOpen, mobileOpen, onClose }) => {
     admin: [
       { path: "/admin/dashboard", label: "Dashboard", icon: FiHome },
       { path: "/admin/users", label: "Users", icon: FiUsers },
+      { path: "/admin/opportunities", label: "Opportunity", icon: FiBell },
       { path: "/admin/inventory", label: "Inventory", icon: FiPackage },
       { path: "/admin/rfqs", label: "RFQs", icon: FiFileText },
       { path: "/admin/kyc-review", label: "KYC Review", icon: FiUserCheck },
@@ -80,8 +81,12 @@ const Sidebar = ({ isOpen, mobileOpen, onClose }) => {
       <aside className={sidebarClasses}>
         <div className="sidebar-header">
           <div className="logo-container">
-            <div className="logo-icon">AG</div>
-            {isOpen && <div className="logo-text">AMIRSAD Gold</div>}
+             <img
+                  src="/AmirsadLogo.jpeg"
+                  alt="AMIRSAD Gold"
+                  className="logo-full"
+                />
+            {isOpen && <div className="logo-text">AMIRSAD ENERGY</div>}
           </div>
         </div>
 
@@ -127,25 +132,13 @@ const Sidebar = ({ isOpen, mobileOpen, onClose }) => {
           width: 70px;
         }
         .sidebar-header {
-          padding: 1.5rem;
+          padding: 1rem;
           border-bottom: 1px solid var(--border-color);
         }
         .logo-container {
           display: flex;
           align-items: center;
-          gap: 12px;
-        }
-        .logo-icon {
-          width: 40px;
-          height: 40px;
-          background: linear-gradient(135deg, #f4a261, #e76f51);
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 18px;
-          color: white;
+          gap: 2px;
         }
         .logo-text {
           font-size: 18px;
@@ -190,6 +183,9 @@ const Sidebar = ({ isOpen, mobileOpen, onClose }) => {
           background: rgba(0, 0, 0, 0.5);
           z-index: 999;
         }
+          .logo-full{
+          width: 60px
+          }
         @media (max-width: 768px) {
           .sidebar {
             transform: translateX(-100%);
