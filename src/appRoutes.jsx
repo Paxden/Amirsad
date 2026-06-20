@@ -29,7 +29,6 @@ import AdminOpportunities from "./pages/admin/Opportunity";
 // Staff Pages
 import StaffDashboard from "./pages/dashboard/StaffDashboard";
 import StaffRFQReview from "./pages/staff/RFQReview";
-import StaffInventory from "./pages/staff/Inventory";
 
 // Supplier Pages
 import SupplierDashboard from "./pages/dashboard/SupplierDashboard";
@@ -122,7 +121,7 @@ const AppRoutes = () => {
           <Route path="/staff/deals" element={<AdminDeals />} />
           <Route path="/staff/appointments" element={<AdminAppointments />} />
           <Route path="/staff/rfq-review" element={<StaffRFQReview />} />
-          <Route path="/staff/inventory" element={<StaffInventory />} />
+          <Route path="/staff/inventory" element={<AdminInventory />} />
 
           <Route
             path="*"

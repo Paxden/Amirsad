@@ -25,6 +25,7 @@ import {
   FiClock,
   FiUserCheck,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import {
   LineChart,
   Line,
@@ -44,6 +45,27 @@ import {
 } from "recharts";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const AdminReports = () => {
   const [loading, setLoading] = useState(true);
@@ -74,30 +96,27 @@ const AdminReports = () => {
     try {
       const token = localStorage.getItem("token");
 
-      // Fetch overview stats
       const overviewRes = await fetch(
         `${import.meta.env.VITE_API_URL}/dashboard/admin`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
       const overviewData = await overviewRes.json();
 
-      // Fetch deals stats
       const dealsRes = await fetch(
         `${import.meta.env.VITE_API_URL}/deals/stats`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
       const dealsData = await dealsRes.json();
 
-      // Fetch inventory stats
       const inventoryRes = await fetch(
         `${import.meta.env.VITE_API_URL}/inventory/stats`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
       const inventoryData = await inventoryRes.json();
 
@@ -123,7 +142,7 @@ const AdminReports = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
 
       if (response.ok) {
@@ -146,12 +165,12 @@ const AdminReports = () => {
 
   // Sample chart data (replace with real API data)
   const monthlyRevenueData = [
-    { month: "Jan", revenue: 125000, deals: 12 },
-    { month: "Feb", revenue: 150000, deals: 15 },
-    { month: "Mar", revenue: 180000, deals: 18 },
-    { month: "Apr", revenue: 165000, deals: 16 },
-    { month: "May", revenue: 210000, deals: 22 },
-    { month: "Jun", revenue: 245000, deals: 25 },
+    { month: "Jan", revenue: 187500000, deals: 12 },
+    { month: "Feb", revenue: 225000000, deals: 15 },
+    { month: "Mar", revenue: 270000000, deals: 18 },
+    { month: "Apr", revenue: 247500000, deals: 16 },
+    { month: "May", revenue: 315000000, deals: 22 },
+    { month: "Jun", revenue: 367500000, deals: 25 },
   ];
 
   const userGrowthData = [
@@ -180,9 +199,9 @@ const AdminReports = () => {
   const statsCards = [
     {
       title: "Total Revenue",
-      value: `$${((reportData?.deals?.totalValue || 0) / 1000000).toFixed(2)}M`,
+      value: formatNairaMillions(reportData?.deals?.totalValue || 0),
       change: "+23%",
-      icon: FiDollarSign,
+      icon: FaHashtag,
       color: "success",
     },
     {
@@ -356,7 +375,6 @@ const AdminReports = () => {
       {/* Overview Tab */}
       {activeTab === "overview" && (
         <div>
-          {/* Revenue Chart */}
           <Row className="g-4 mb-4">
             <Col lg={8}>
               <Card className="border-0 shadow-sm">
@@ -368,16 +386,23 @@ const AdminReports = () => {
                     <LineChart data={monthlyRevenueData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
-                      <YAxis yAxisId="left" />
+                      <YAxis yAxisId="left" tickFormatter={(value) => `₦${(value / 1000000).toFixed(0)}M`} />
                       <YAxis yAxisId="right" orientation="right" />
-                      <Tooltip />
+                      <Tooltip
+                        formatter={(value, name) => {
+                          if (name === "revenue") {
+                            return formatNaira(value);
+                          }
+                          return value;
+                        }}
+                      />
                       <Legend />
                       <Line
                         yAxisId="left"
                         type="monotone"
                         dataKey="revenue"
                         stroke="#f4a261"
-                        name="Revenue ($)"
+                        name="Revenue (₦)"
                         strokeWidth={2}
                       />
                       <Line
@@ -424,7 +449,6 @@ const AdminReports = () => {
             </Col>
           </Row>
 
-          {/* User Growth Chart */}
           <Row className="g-4 mb-4">
             <Col lg={12}>
               <Card className="border-0 shadow-sm">
@@ -462,7 +486,6 @@ const AdminReports = () => {
             </Col>
           </Row>
 
-          {/* Key Metrics Cards */}
           <Row className="g-4">
             <Col md={6}>
               <Card className="border-0 shadow-sm">
@@ -598,21 +621,13 @@ const AdminReports = () => {
                   <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                     <span>Total Value</span>
                     <span className="fw-bold">
-                      $
-                      {((reportData?.deals?.totalValue || 0) / 1000000).toFixed(
-                        2,
-                      )}
-                      M
+                      {formatNairaMillions(reportData?.deals?.totalValue || 0)}
                     </span>
                   </div>
                   <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                     <span>Average Deal Size</span>
                     <span className="fw-bold">
-                      $
-                      {(
-                        (reportData?.deals?.averageDealSize || 0) / 1000
-                      ).toFixed(0)}
-                      K
+                      {formatNaira((reportData?.deals?.averageDealSize || 0))}
                     </span>
                   </div>
                   <div className="d-flex justify-content-between align-items-center">
@@ -689,11 +704,7 @@ const AdminReports = () => {
                   <div className="d-flex justify-content-between align-items-center">
                     <span>Total Value</span>
                     <span className="fw-bold">
-                      $
-                      {(
-                        (reportData?.inventory?.totalValue || 0) / 1000000
-                      ).toFixed(2)}
-                      M
+                      {formatNairaMillions(reportData?.inventory?.totalValue || 0)}
                     </span>
                   </div>
                 </Card.Body>

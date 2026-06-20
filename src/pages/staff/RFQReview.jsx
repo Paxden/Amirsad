@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -14,29 +14,47 @@ import {
   InputGroup,
   Dropdown,
   Alert,
-  
 } from "react-bootstrap";
 import {
   FiFileText,
   FiSearch,
   FiFilter,
   FiMoreVertical,
- 
   FiEye,
   FiSend,
   FiRefreshCw,
-  FiDollarSign,
   FiUser,
   FiCalendar,
   FiMessageSquare,
-  
   FiClock,
   FiMail,
   FiPhone,
   FiMapPin,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const StaffRFQReview = () => {
   const [rfqs, setRfqs] = useState([]);
@@ -68,8 +86,28 @@ const StaffRFQReview = () => {
 
   useEffect(() => {
     fetchRFQs();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats from RFQs data
+  const calculateStats = (rfqsData) => {
+    if (rfqsData && rfqsData.length > 0) {
+      const totalValue = rfqsData.reduce((sum, r) => sum + (r.offeredTotalPrice || 0), 0);
+      
+      setStats({
+        pending: rfqsData.filter(r => r.status === "pending").length,
+        underReview: rfqsData.filter(r => r.status === "under_review").length,
+        quoted: rfqsData.filter(r => r.status === "quoted").length,
+        totalValue: totalValue,
+      });
+    } else {
+      setStats({
+        pending: 0,
+        underReview: 0,
+        quoted: 0,
+        totalValue: 0,
+      });
+    }
+  };
 
   const fetchRFQs = async () => {
     try {
@@ -85,37 +123,20 @@ const StaffRFQReview = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       const data = await response.json();
       if (data.success) {
         setRfqs(data.rfqs || []);
+        calculateStats(data.rfqs || []);
       }
     } catch (error) {
       console.error("Failed to fetch RFQs:", error);
       toast.error("Failed to load RFQs");
+      setRfqs([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/rfqs/admin/stats`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.stats || {});
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -135,8 +156,12 @@ const StaffRFQReview = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(responseData),
-        },
+          body: JSON.stringify({
+            quotePricePerKg: parseFloat(responseData.quotePricePerKg),
+            staffResponse: responseData.staffResponse,
+            staffNotes: responseData.staffNotes,
+          }),
+        }
       );
       const data = await response.json();
       if (data.success) {
@@ -148,10 +173,9 @@ const StaffRFQReview = () => {
           staffNotes: "",
         });
         fetchRFQs();
-        fetchStats();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Respond error:", error);
       toast.error("Failed to send response");
     }
   };
@@ -172,8 +196,11 @@ const StaffRFQReview = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(negotiateData),
-        },
+          body: JSON.stringify({
+            pricePerKg: parseFloat(negotiateData.pricePerKg),
+            message: negotiateData.message,
+          }),
+        }
       );
       const data = await response.json();
       if (data.success) {
@@ -181,11 +208,9 @@ const StaffRFQReview = () => {
         setShowNegotiateModal(false);
         setNegotiateData({ pricePerKg: "", message: "" });
         fetchRFQs();
-        fetchStats();
       }
     } catch (error) {
-        console.log(error)
-
+      console.error("Negotiate error:", error);
       toast.error("Failed to send counter offer");
     }
   };
@@ -240,7 +265,7 @@ const StaffRFQReview = () => {
   const statCards = [
     {
       title: "Pending Review",
-      value: stats.pendingCount || 0,
+      value: stats.pending || 0,
       icon: FiClock,
       color: "warning",
       description: "RFQs awaiting response",
@@ -254,15 +279,15 @@ const StaffRFQReview = () => {
     },
     {
       title: "Quoted",
-      value: stats.quotedRFQs || 0,
+      value: stats.quoted || 0,
       icon: FiSend,
       color: "primary",
       description: "Quotes sent",
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiDollarSign,
+      value: formatNairaMillions(stats.totalValue || 0),
+      icon: FaHashtag,
       color: "success",
       description: "Pending RFQ value",
     },
@@ -413,14 +438,14 @@ const StaffRFQReview = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-primary">
-                      ${rfq.offeredPricePerKg?.toLocaleString()}/kg
+                      {formatNaira(rfq.offeredPricePerKg)}/kg
                     </div>
                     <small>
-                      Total: ${(rfq.offeredTotalPrice || 0).toLocaleString()}
+                      Total: {formatNaira(rfq.offeredTotalPrice || 0)}
                     </small>
                     {rfq.quotePricePerKg && (
                       <div className="small text-success">
-                        Quoted: ${rfq.quotePricePerKg}/kg
+                        Quoted: {formatNaira(rfq.quotePricePerKg)}/kg
                       </div>
                     )}
                   </td>
@@ -570,7 +595,7 @@ const StaffRFQReview = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Offer Price</small>
                       <h5 className="fw-bold text-primary mb-0">
-                        ${selectedRFQ.offeredPricePerKg?.toLocaleString()}/kg
+                        {formatNaira(selectedRFQ.offeredPricePerKg)}/kg
                       </h5>
                     </div>
                   </Col>
@@ -578,7 +603,7 @@ const StaffRFQReview = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Total Value</small>
                       <h5 className="fw-bold text-success mb-0">
-                        ${(selectedRFQ.offeredTotalPrice || 0).toLocaleString()}
+                        {formatNaira(selectedRFQ.offeredTotalPrice || 0)}
                       </h5>
                     </div>
                   </Col>
@@ -623,7 +648,7 @@ const StaffRFQReview = () => {
                   <p className="mb-0 mt-1">{selectedRFQ.staffResponse}</p>
                   {selectedRFQ.quotePricePerKg && (
                     <small className="text-muted">
-                      Quoted Price: ${selectedRFQ.quotePricePerKg}/kg
+                      Quoted Price: {formatNaira(selectedRFQ.quotePricePerKg)}/kg
                     </small>
                   )}
                 </Alert>
@@ -643,7 +668,7 @@ const StaffRFQReview = () => {
                               {new Date(item.createdAt).toLocaleString()}
                             </small>
                           </div>
-                          <div>Price: ${item.pricePerKg}/kg</div>
+                          <div>Price: {formatNaira(item.pricePerKg)}/kg</div>
                           <div className="small text-muted">{item.message}</div>
                         </div>
                       ))}
@@ -703,8 +728,8 @@ const StaffRFQReview = () => {
                 <p className="mb-0 mt-2">
                   Buyer: {selectedRFQ.buyer?.fullName}
                   <br />
-                  Requested: {selectedRFQ.requestedWeightKg} kg @ $
-                  {selectedRFQ.offeredPricePerKg}/kg
+                  Requested: {selectedRFQ.requestedWeightKg} kg @{" "}
+                  {formatNaira(selectedRFQ.offeredPricePerKg)}/kg
                 </p>
               </Alert>
 
@@ -712,7 +737,7 @@ const StaffRFQReview = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>Your Quote Price (per kg) *</Form.Label>
                   <InputGroup>
-                    <InputGroup.Text>$</InputGroup.Text>
+                    <InputGroup.Text>₦</InputGroup.Text>
                     <Form.Control
                       type="number"
                       step="100"
@@ -729,11 +754,11 @@ const StaffRFQReview = () => {
                   </InputGroup>
                   {responseData.quotePricePerKg && (
                     <Form.Text className="text-muted">
-                      Total Quote: $
-                      {(
+                      Total Quote:{" "}
+                      {formatNaira(
                         responseData.quotePricePerKg *
-                        selectedRFQ.requestedWeightKg
-                      ).toLocaleString()}
+                          selectedRFQ.requestedWeightKg
+                      )}
                     </Form.Text>
                   )}
                 </Form.Group>
@@ -802,13 +827,13 @@ const StaffRFQReview = () => {
               <Form.Group className="mb-3">
                 <Form.Label>Original Quote</Form.Label>
                 <div className="bg-light p-2 rounded">
-                  ${selectedRFQ.quotePricePerKg}/kg
+                  {formatNaira(selectedRFQ.quotePricePerKg)}/kg
                 </div>
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Your Counter Offer (per kg) *</Form.Label>
                 <InputGroup>
-                  <InputGroup.Text>$</InputGroup.Text>
+                  <InputGroup.Text>₦</InputGroup.Text>
                   <Form.Control
                     type="number"
                     step="100"

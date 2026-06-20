@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
 /* eslint-disable no-unused-vars */
@@ -30,7 +31,6 @@ import {
 } from "react-icons/fi";
 import PageHeader from "../../components/PageHeader";
 import { supplierApi } from "../../api/supplierApi";
-import { inventoryApi } from "../../api/inventoryApi";
 import toast from "react-hot-toast";
 
 const SupplierOpportunities = () => {
@@ -64,93 +64,88 @@ const SupplierOpportunities = () => {
     totalValue: 0,
   });
 
-  useEffect(() => {
-    fetchOpportunities();
-    fetchStats();
-  }, [filters]);
+ useEffect(() => {
+  fetchOpportunities();
+}, [filters]);
 
-  // Update the fetchOpportunities function
+useEffect(() => {
+  const statsData = {
+    total: opportunities.length,
+
+    pending: opportunities.filter(
+      (o) => o.status === "pending"
+    ).length,
+
+    approved: opportunities.filter(
+      (o) => o.status === "approved"
+    ).length,
+
+    rejected: opportunities.filter(
+      (o) => o.status === "rejected"
+    ).length,
+
+    totalWeight: opportunities.reduce(
+      (sum, o) => sum + (Number(o.weightKg) || 0),
+      0
+    ),
+
+    totalValue: opportunities.reduce(
+      (sum, o) =>
+        sum +
+        (Number(o.weightKg) || 0) *
+        (Number(o.askingPrice) || 0),
+      0
+    ),
+  };
+
+  setStats(statsData);
+}, [opportunities]);
+
+  // Fetch opportunities using the same pattern as admin
   const fetchOpportunities = async () => {
     try {
       setLoading(true);
-      const response = await supplierApi.getOpportunities();
-      if (response && response.success) {
-        setOpportunities(
-          response.opportunities || response.data?.opportunities || [],
-        );
-      } else {
-        setOpportunities([]);
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.search) queryParams.append("search", filters.search);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/opportunities/my?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setOpportunities(data.opportunities || []);
       }
     } catch (error) {
       console.error("Failed to fetch opportunities:", error);
-      // Don't show error toast for empty state
-      if (error.response?.status !== 404) {
-        toast.error("Failed to load opportunities");
-      }
-      setOpportunities([]);
+      toast.error("Failed to load opportunities");
     } finally {
       setLoading(false);
     }
   };
 
-  // Update the fetchStats function
-// Update the fetchStats function
-const fetchStats = async () => {
-  try {
-    const response = await supplierApi.getStats();
-    console.log("Stats response:", response); // Debug log
-    
-    if (response && response.success) {
-      // Handle different possible response structures
-      let statsData = {};
-      
-      if (response.data?.opportunities) {
-        // Structure: { success: true, data: { opportunities: {...} } }
-        statsData = response.data.opportunities;
-      } else if (response.stats) {
-        // Structure: { success: true, stats: {...} }
-        statsData = response.stats;
-      } else if (response.opportunities) {
-        // Structure: { success: true, opportunities: {...} }
-        statsData = response.opportunities;
-      } else {
-        // Fallback to using the opportunities array
-        statsData = response;
-      }
-      
-      setStats({
-        total: statsData.total || 0,
-        pending: statsData.pending || 0,
-        approved: statsData.approved || 0,
-        rejected: statsData.rejected || 0,
-        totalWeight: statsData.totalWeight || 0,
-        totalValue: statsData.totalValue || 0,
-      });
-    } else {
-      // If no stats, calculate from opportunities array
-      calculateStatsFromOpportunities();
+ 
+  // Calculate stats from opportunities as fallback
+  const calculateStatsFromOpportunities = () => {
+    if (opportunities.length > 0) {
+      const statsData = {
+        total: opportunities.length,
+        pending: opportunities.filter(o => o.status === "pending").length,
+        approved: opportunities.filter(o => o.status === "approved").length,
+        rejected: opportunities.filter(o => o.status === "rejected").length,
+        totalWeight: opportunities.reduce((sum, o) => sum + (o.weightKg || 0), 0),
+        totalValue: opportunities.reduce((sum, o) => sum + ((o.weightKg || 0) * (o.askingPrice || 0)), 0),
+      };
+      setStats(statsData);
     }
-  } catch (error) {
-    console.error("Failed to fetch stats:", error);
-    // Calculate stats from opportunities array as fallback
-    calculateStatsFromOpportunities();
-  }
-};
+  };
 
-// Add this helper function to calculate stats from opportunities
-const calculateStatsFromOpportunities = () => {
-  if (opportunities.length > 0) {
-    const stats = {
-      total: opportunities.length,
-      pending: opportunities.filter(o => o.status === "pending").length,
-      approved: opportunities.filter(o => o.status === "approved").length,
-      rejected: opportunities.filter(o => o.status === "rejected").length,
-      totalWeight: opportunities.reduce((sum, o) => sum + (o.weightKg || 0), 0),
-      totalValue: opportunities.reduce((sum, o) => sum + ((o.weightKg || 0) * (o.askingPrice || 0)), 0),
-    };
-    setStats(stats);
-  }
-};
   const handleCreateOpportunity = async () => {
     if (
       !formData.title ||
@@ -164,8 +159,20 @@ const calculateStatsFromOpportunities = () => {
     }
 
     try {
-      const response = await supplierApi.createOpportunity(formData);
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/opportunities`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Opportunity created successfully");
         setShowCreateModal(false);
         setFormData({
@@ -181,25 +188,33 @@ const calculateStatsFromOpportunities = () => {
           documents: [],
         });
         fetchOpportunities();
-        fetchStats();
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to create opportunity",
-      );
+      console.error("Create opportunity error:", error);
+      toast.error("Failed to create opportunity");
     }
   };
 
   const handleDeleteOpportunity = async (id) => {
     if (window.confirm("Are you sure you want to delete this opportunity?")) {
       try {
-        const response = await supplierApi.deleteOpportunity(id);
-        if (response.success) {
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/opportunities/${id}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const data = await response.json();
+        if (data.success) {
           toast.success("Opportunity deleted");
           fetchOpportunities();
-          fetchStats();
         }
       } catch (error) {
+        console.error("Delete opportunity error:", error);
         toast.error("Failed to delete opportunity");
       }
     }
@@ -376,7 +391,7 @@ const calculateStatsFromOpportunities = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${opp.askingPrice?.toLocaleString()}
+                      #{opp.askingPrice?.toLocaleString()}
                     </div>
                   </td>
                   <td>{getStatusBadge(opp.status)}</td>
@@ -514,7 +529,7 @@ const calculateStatsFromOpportunities = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>Asking Price (per kg) *</Form.Label>
                   <InputGroup>
-                    <InputGroup.Text>$</InputGroup.Text>
+                    <InputGroup.Text>#</InputGroup.Text>
                     <Form.Control
                       type="number"
                       placeholder="Enter price per kg"
@@ -635,7 +650,7 @@ const calculateStatsFromOpportunities = () => {
                     <div className="text-center">
                       <small className="text-muted">Asking Price</small>
                       <h4 className="fw-bold text-success mb-0">
-                        ${selectedOpportunity.askingPrice?.toLocaleString()}/kg
+                        #{selectedOpportunity.askingPrice?.toLocaleString()}/kg
                       </h4>
                     </div>
                   </Col>

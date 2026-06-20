@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable react-hooks/immutability */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,21 +15,43 @@ import {
 } from "react-bootstrap";
 import { 
   FiPackage, 
-  FiDollarSign, 
   FiTrendingUp, 
   FiRefreshCw, 
   FiCheckCircle, 
   FiClock, 
   FiFileText,
   FiCalendar,
-  
   FiAlertCircle,
   FiArrowRight
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import { dashboardApi } from "../../api/dashboardApi";
-import { supplierApi } from "../../api/supplierApi";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with thousands
+const formatNairaThousands = (amount) => {
+  if (!amount) return "₦0";
+  const thousands = amount / 1000;
+  if (thousands >= 1000) {
+    return `₦${(thousands / 1000).toFixed(1)}B`;
+  }
+  if (thousands >= 1) {
+    return `₦${thousands.toFixed(0)}K`;
+  }
+  return formatNaira(amount);
+};
 
 const SupplierDashboard = () => {
   const navigate = useNavigate();
@@ -36,11 +59,21 @@ const SupplierDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [recentActivities, setRecentActivities] = useState([]);
   const [pendingTasks, setPendingTasks] = useState([]);
+  const [stats, setStats] = useState({
+    totalOpportunities: 0,
+    availableInventory: 0,
+    totalRFQs: 0,
+    totalValue: 0,
+    approvalRate: 0,
+    utilizationRate: 0,
+    acceptanceRate: 0,
+    totalGoldSold: 0,
+    totalDealsValue: 0,
+    completedDeals: 0,
+  });
 
   useEffect(() => {
     fetchDashboardData();
-    fetchRecentActivities();
-    fetchPendingTasks();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -48,7 +81,22 @@ const SupplierDashboard = () => {
       setLoading(true);
       const response = await dashboardApi.getSupplierDashboard();
       if (response.success) {
-        setData(response.data);
+        const dashboardData = response.data;
+        setData(dashboardData);
+        
+        // Calculate stats from response data
+        setStats({
+          totalOpportunities: dashboardData?.opportunities?.total || 0,
+          availableInventory: dashboardData?.inventory?.available || 0,
+          totalRFQs: dashboardData?.rfqs?.total || 0,
+          totalValue: dashboardData?.inventory?.totalValue || 0,
+          approvalRate: dashboardData?.opportunities?.approvalRate || 0,
+          utilizationRate: dashboardData?.inventory?.utilizationRate || 0,
+          acceptanceRate: dashboardData?.rfqs?.acceptanceRate || 0,
+          totalGoldSold: dashboardData?.performance?.totalGoldSold || 0,
+          totalDealsValue: dashboardData?.rfqs?.totalValue || 0,
+          completedDeals: dashboardData?.rfqs?.accepted || 0,
+        });
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
@@ -58,33 +106,10 @@ const SupplierDashboard = () => {
     }
   };
 
-  const fetchRecentActivities = async () => {
-    try {
-      // Fetch recent activities from API
-      const response = await supplierApi.getRecentActivities();
-      if (response.success) {
-        setRecentActivities(response.activities);
-      }
-    } catch (error) {
-      console.error("Failed to fetch activities:", error);
-    }
-  };
-
-  const fetchPendingTasks = async () => {
-    try {
-      const response = await supplierApi.getPendingTasks();
-      if (response.success) {
-        setPendingTasks(response.tasks);
-      }
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
-    }
-  };
-
   const statCards = [
     { 
       title: "Total Opportunities", 
-      value: data?.opportunities?.total || 0, 
+      value: stats.totalOpportunities, 
       icon: FiPackage, 
       color: "primary",
       link: "/supplier/opportunities",
@@ -92,7 +117,7 @@ const SupplierDashboard = () => {
     },
     { 
       title: "Active Inventory", 
-      value: data?.inventory?.available || 0, 
+      value: stats.availableInventory, 
       icon: FiPackage, 
       color: "success",
       link: "/supplier/inventory",
@@ -100,7 +125,7 @@ const SupplierDashboard = () => {
     },
     { 
       title: "RFQs Received", 
-      value: data?.rfqs?.total || 0, 
+      value: stats.totalRFQs, 
       icon: FiTrendingUp, 
       color: "info",
       link: "/supplier/rfqs",
@@ -108,8 +133,8 @@ const SupplierDashboard = () => {
     },
     { 
       title: "Total Value", 
-      value: `$${((data?.inventory?.totalValue || 0) / 1000).toFixed(0)}K`, 
-      icon: FiDollarSign, 
+      value: formatNairaThousands(stats.totalValue), 
+      icon: FaHashtag, 
       color: "warning",
       link: "/supplier/deals",
       description: "Total inventory value"
@@ -173,7 +198,7 @@ const SupplierDashboard = () => {
             <Button 
               variant="warning" 
               size="sm"
-              onClick={() => navigate("/supplier/kyc/form")}
+              onClick={() => navigate("/supplier/kyc")}
             >
               Submit KYC Now
             </Button>
@@ -218,10 +243,10 @@ const SupplierDashboard = () => {
               <div className="mb-4">
                 <div className="d-flex justify-content-between mb-2">
                   <span>Approval Rate</span>
-                  <span className="fw-bold">{data?.opportunities?.approvalRate || 0}%</span>
+                  <span className="fw-bold">{stats.approvalRate || 0}%</span>
                 </div>
                 <ProgressBar 
-                  now={data?.opportunities?.approvalRate || 0} 
+                  now={stats.approvalRate || 0} 
                   variant="success"
                   className="rounded-pill"
                 />
@@ -229,10 +254,10 @@ const SupplierDashboard = () => {
               <div className="mb-4">
                 <div className="d-flex justify-content-between mb-2">
                   <span>Inventory Utilization</span>
-                  <span className="fw-bold">{data?.inventory?.utilizationRate || 0}%</span>
+                  <span className="fw-bold">{stats.utilizationRate || 0}%</span>
                 </div>
                 <ProgressBar 
-                  now={data?.inventory?.utilizationRate || 0} 
+                  now={stats.utilizationRate || 0} 
                   variant="warning"
                   className="rounded-pill"
                 />
@@ -240,10 +265,10 @@ const SupplierDashboard = () => {
               <div className="mb-4">
                 <div className="d-flex justify-content-between mb-2">
                   <span>RFQ Acceptance Rate</span>
-                  <span className="fw-bold">{data?.rfqs?.acceptanceRate || 0}%</span>
+                  <span className="fw-bold">{stats.acceptanceRate || 0}%</span>
                 </div>
                 <ProgressBar 
-                  now={data?.rfqs?.acceptanceRate || 0} 
+                  now={stats.acceptanceRate || 0} 
                   variant="info"
                   className="rounded-pill"
                 />
@@ -253,17 +278,17 @@ const SupplierDashboard = () => {
                   <span>Overall Performance</span>
                   <span className="fw-bold">
                     {Math.round(
-                      ((data?.opportunities?.approvalRate || 0) + 
-                       (data?.inventory?.utilizationRate || 0) + 
-                       (data?.rfqs?.acceptanceRate || 0)) / 3
+                      ((stats.approvalRate || 0) + 
+                       (stats.utilizationRate || 0) + 
+                       (stats.acceptanceRate || 0)) / 3
                     )}%
                   </span>
                 </div>
                 <ProgressBar 
                   now={Math.round(
-                    ((data?.opportunities?.approvalRate || 0) + 
-                     (data?.inventory?.utilizationRate || 0) + 
-                     (data?.rfqs?.acceptanceRate || 0)) / 3
+                    ((stats.approvalRate || 0) + 
+                     (stats.utilizationRate || 0) + 
+                     (stats.acceptanceRate || 0)) / 3
                   )} 
                   variant="primary"
                   className="rounded-pill"
@@ -298,23 +323,23 @@ const SupplierDashboard = () => {
                 <ListGroup.Item className="d-flex justify-content-between align-items-center bg-transparent">
                   <span>Total Gold Sold</span>
                   <span className="fw-bold text-success">
-                    {data?.performance?.totalGoldSold || 0} kg
+                    {stats.totalGoldSold || 0} kg
                   </span>
                 </ListGroup.Item>
                 <ListGroup.Item className="d-flex justify-content-between align-items-center bg-transparent">
                   <span>Total Revenue</span>
                   <span className="fw-bold text-primary">
-                    ${((data?.performance?.averageDealSize || 0) / 1000).toFixed(0)}K
+                    {formatNairaThousands(stats.totalDealsValue || 0)}
                   </span>
                 </ListGroup.Item>
                 <ListGroup.Item className="d-flex justify-content-between align-items-center bg-transparent">
                   <span>Completed Deals</span>
-                  <span className="fw-bold">{data?.rfqs?.accepted || 0}</span>
+                  <span className="fw-bold">{stats.completedDeals || 0}</span>
                 </ListGroup.Item>
                 <ListGroup.Item className="d-flex justify-content-between align-items-center bg-transparent">
                   <span>Total Deals Value</span>
                   <span className="fw-bold text-success">
-                    ${((data?.rfqs?.totalValue || 0) / 1000).toFixed(0)}K
+                    {formatNairaThousands(stats.totalDealsValue || 0)}
                   </span>
                 </ListGroup.Item>
               </ListGroup>
@@ -338,15 +363,19 @@ const SupplierDashboard = () => {
             </Card.Header>
             <Card.Body>
               <div className="activity-timeline">
-                {recentActivities.length > 0 ? (
-                  recentActivities.slice(0, 5).map((activity, index) => (
+                {data?.recentActivity?.rfqs && data.recentActivity.rfqs.length > 0 ? (
+                  data.recentActivity.rfqs.slice(0, 5).map((rfq, index) => (
                     <div key={index} className="activity-item">
                       <div className="activity-icon">
                         <FiClock size={14} />
                       </div>
                       <div className="activity-content">
-                        <p className="mb-0 small">{activity.description}</p>
-                        <small className="text-muted">{activity.timeAgo}</small>
+                        <p className="mb-0 small">
+                          <strong>RFQ {rfq.rfqNumber}</strong> received from {rfq.buyer?.fullName || "a buyer"}
+                        </p>
+                        <small className="text-muted">
+                          {new Date(rfq.createdAt).toLocaleDateString()}
+                        </small>
                       </div>
                     </div>
                   ))
@@ -370,7 +399,7 @@ const SupplierDashboard = () => {
                   <Button 
                     variant="outline-primary" 
                     className="w-100 py-3"
-                    onClick={() => navigate("/supplier/opportunities/create")}
+                    onClick={() => navigate("/supplier/opportunities")}
                   >
                     <FiFileText size={20} className="mb-2 d-block mx-auto" />
                     <span>New Opportunity</span>
@@ -412,26 +441,7 @@ const SupplierDashboard = () => {
         </Col>
       </Row>
 
-      {/* Pending Tasks Alert */}
-      {pendingTasks.length > 0 && (
-        <Alert variant="info" className="mt-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <strong>Pending Tasks</strong>
-              <p className="mb-0 small">You have {pendingTasks.length} pending task(s) that require attention.</p>
-            </div>
-            <Button 
-              variant="info" 
-              size="sm"
-              onClick={() => navigate("/supplier/tasks")}
-            >
-              View Tasks
-            </Button>
-          </div>
-        </Alert>
-      )}
-
-      <style jsx>{`
+      <style>{`
         .stat-card {
           transition: all 0.3s ease;
         }

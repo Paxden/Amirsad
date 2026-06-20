@@ -1,6 +1,8 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Row,
   Col,
@@ -24,13 +26,26 @@ import {
   FiRefreshCw,
   FiSend,
   FiClock,
+  FiTrendingUp,
+  FiAward,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
-import { inventoryApi } from "../../api/inventoryApi";
-import { rfqApi } from "../../api/rfqApi";
 import toast from "react-hot-toast";
 
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
 const BuyerInventory = () => {
+  const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -68,6 +83,7 @@ const BuyerInventory = () => {
   const fetchInventory = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem("token");
       const params = {
         ...filters,
         page: pagination.page,
@@ -84,13 +100,22 @@ const BuyerInventory = () => {
         }
       });
 
-      const response = await inventoryApi.getAvailableInventory(params);
-      if (response.success) {
-        setInventory(response.inventory || []);
+      const queryString = new URLSearchParams(params).toString();
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/inventory?${queryString}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setInventory(data.inventory || []);
         setPagination({
           ...pagination,
-          total: response.total || 0,
-          pages: response.pages || 0,
+          total: data.total || 0,
+          pages: data.pages || 0,
         });
       }
     } catch (error) {
@@ -107,35 +132,60 @@ const BuyerInventory = () => {
       return;
     }
 
-    if (parseFloat(rfqData.requestedWeightKg) > selectedItem.availableWeightKg) {
+    const requestedWeight = parseFloat(rfqData.requestedWeightKg);
+    const offeredPrice = parseFloat(rfqData.offeredPricePerKg);
+
+    if (isNaN(requestedWeight) || requestedWeight <= 0) {
+      toast.error("Please enter a valid weight");
+      return;
+    }
+
+    if (isNaN(offeredPrice) || offeredPrice <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    if (requestedWeight > selectedItem.availableWeightKg) {
       toast.error(`Requested weight exceeds available (${selectedItem.availableWeightKg} kg)`);
       return;
     }
 
     try {
-      const response = await rfqApi.createRFQ({
-        inventoryId: selectedItem._id,
-        requestedWeightKg: parseFloat(rfqData.requestedWeightKg),
-        offeredPricePerKg: parseFloat(rfqData.offeredPricePerKg),
-        message: rfqData.message,
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/rfqs`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inventoryId: selectedItem._id,
+          requestedWeightKg: requestedWeight,
+          offeredPricePerKg: offeredPrice,
+          message: rfqData.message || "",
+        }),
       });
-      
-      if (response.success) {
+
+      const data = await response.json();
+      if (data.success) {
         toast.success("RFQ submitted successfully! You'll receive a quote shortly.");
         setShowRFQModal(false);
         setRfqData({ requestedWeightKg: "", offeredPricePerKg: "", message: "" });
         fetchInventory();
+      } else {
+        toast.error(data.message || "Failed to submit RFQ");
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to submit RFQ");
+      console.error("RFQ creation error:", error);
+      toast.error("Failed to submit RFQ");
     }
   };
 
   const getPurityBadge = (purity) => {
-    if (purity >= 99.9) return <Badge bg="success">Investment Grade</Badge>;
-    if (purity >= 99) return <Badge bg="info">High Purity</Badge>;
-    if (purity >= 95) return <Badge bg="warning">Good Purity</Badge>;
-    return <Badge bg="secondary">Standard</Badge>;
+    if (purity >= 99.9) return <Badge bg="success" className="px-3 py-2">🌟 Investment Grade</Badge>;
+    if (purity >= 99) return <Badge bg="info" className="px-3 py-2">💎 High Purity</Badge>;
+    if (purity >= 95) return <Badge bg="warning" className="px-3 py-2">⭐ Good Purity</Badge>;
+    return <Badge bg="secondary" className="px-3 py-2">📊 Standard</Badge>;
   };
 
   const handlePageChange = (page) => {
@@ -178,6 +228,36 @@ const BuyerInventory = () => {
           </Button>
         }
       />
+
+      {/* Stats Summary */}
+      <Card className="border-0 shadow-sm mb-4 bg-gradient-stats">
+        <Card.Body>
+          <Row className="align-items-center text-center text-md-start">
+            <Col md={6}>
+              <h5 className="fw-bold text-white mb-2">🛒 Gold Marketplace</h5>
+              <p className="text-white-50 mb-0">
+                Browse verified gold inventory from trusted suppliers
+              </p>
+            </Col>
+            <Col md={6} className="text-md-end">
+              <div className="d-flex justify-content-center justify-content-md-end gap-4">
+                <div>
+                  <div className="text-white-50 small">Available Items</div>
+                  <div className="text-white fw-bold fs-5">{pagination.total}</div>
+                </div>
+                <div>
+                  <div className="text-white-50 small">Avg Purity</div>
+                  <div className="text-white fw-bold fs-5">
+                    {inventory.length > 0 
+                      ? `${Math.round(inventory.reduce((sum, i) => sum + i.purity, 0) / inventory.length)}%` 
+                      : 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       {/* Filters */}
       <Card className="border-0 shadow-sm mb-4">
@@ -260,7 +340,7 @@ const BuyerInventory = () => {
             <Col md={2}>
               <Form.Control
                 type="number"
-                placeholder="Min Price ($)"
+                placeholder="Min Price (₦)"
                 value={filters.minPrice}
                 onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
               />
@@ -268,7 +348,7 @@ const BuyerInventory = () => {
             <Col md={2}>
               <Form.Control
                 type="number"
-                placeholder="Max Price ($)"
+                placeholder="Max Price (₦)"
                 value={filters.maxPrice}
                 onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
               />
@@ -285,7 +365,7 @@ const BuyerInventory = () => {
       {/* Sort Options */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <span className="text-muted small">
-          Showing {inventory.length} of {pagination.total} items
+          Showing <strong>{inventory.length}</strong> of <strong>{pagination.total}</strong> items
         </span>
         <div className="d-flex gap-2">
           <Form.Select
@@ -325,7 +405,7 @@ const BuyerInventory = () => {
                       {item.location}
                     </small>
                   </div>
-                  <Badge bg="success">Available</Badge>
+                  <Badge bg="success" className="px-3 py-2 pulse-badge">✓ Available</Badge>
                 </div>
 
                 <div className="text-center py-3 border-bottom mb-3">
@@ -346,13 +426,13 @@ const BuyerInventory = () => {
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted small">Price per kg</span>
                     <span className="fw-bold text-success">
-                      ${item.askingPrice?.toLocaleString()}
+                      {formatNaira(item.askingPrice)}
                     </span>
                   </div>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted small">Total Value</span>
                     <span className="fw-bold text-primary">
-                      ${(item.availableWeightKg * item.askingPrice)?.toLocaleString()}
+                      {formatNaira(item.availableWeightKg * item.askingPrice)}
                     </span>
                   </div>
                   <div className="d-flex justify-content-between">
@@ -457,11 +537,11 @@ const BuyerInventory = () => {
         <Modal.Body>
           {selectedItem && (
             <div>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={6}>
                     <strong>Inventory #:</strong>
-                    <p>{selectedItem.inventoryNumber}</p>
+                    <p className="fw-bold">{selectedItem.inventoryNumber}</p>
                   </Col>
                   <Col md={6}>
                     <strong>Status:</strong>
@@ -479,7 +559,7 @@ const BuyerInventory = () => {
               </div>
 
               <h6 className="fw-bold mb-3">Gold Specifications</h6>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={4}>
                     <div className="text-center p-2 border rounded">
@@ -504,13 +584,13 @@ const BuyerInventory = () => {
               </div>
 
               <h6 className="fw-bold mb-3">Pricing</h6>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={6}>
                     <div className="p-2">
                       <small className="text-muted">Price per kg</small>
                       <h4 className="fw-bold text-success mb-0">
-                        ${selectedItem.askingPrice?.toLocaleString()}
+                        {formatNaira(selectedItem.askingPrice)}
                       </h4>
                     </div>
                   </Col>
@@ -518,7 +598,7 @@ const BuyerInventory = () => {
                     <div className="p-2">
                       <small className="text-muted">Total Value</small>
                       <h4 className="fw-bold text-primary mb-0">
-                        ${(selectedItem.availableWeightKg * selectedItem.askingPrice)?.toLocaleString()}
+                        {formatNaira(selectedItem.availableWeightKg * selectedItem.askingPrice)}
                       </h4>
                     </div>
                   </Col>
@@ -526,7 +606,7 @@ const BuyerInventory = () => {
               </div>
 
               {selectedItem.notes && (
-                <Alert variant="info">
+                <Alert variant="info" className="border-0">
                   <strong>Additional Notes:</strong>
                   <p className="mb-0">{selectedItem.notes}</p>
                 </Alert>
@@ -556,8 +636,8 @@ const BuyerInventory = () => {
         <Modal.Body>
           {selectedItem && (
             <div>
-              <Alert variant="info">
-                <div className="d-flex justify-content-between">
+              <Alert variant="info" className="border-0">
+                <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <strong>{selectedItem.inventoryNumber}</strong>
                     <div className="small text-muted">
@@ -566,7 +646,7 @@ const BuyerInventory = () => {
                   </div>
                   <div className="text-end">
                     <div className="small text-muted">Available</div>
-                    <strong>{selectedItem.availableWeightKg} kg</strong>
+                    <strong className="text-success">{selectedItem.availableWeightKg} kg</strong>
                   </div>
                 </div>
               </Alert>
@@ -590,7 +670,7 @@ const BuyerInventory = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>Your Offer (per kg) *</Form.Label>
                   <InputGroup>
-                    <InputGroup.Text>$</InputGroup.Text>
+                    <InputGroup.Text>₦</InputGroup.Text>
                     <Form.Control
                       type="number"
                       step="100"
@@ -599,7 +679,7 @@ const BuyerInventory = () => {
                     />
                   </InputGroup>
                   <Form.Text className="text-muted">
-                    Current asking price: ${selectedItem.askingPrice}/kg
+                    Current asking price: {formatNaira(selectedItem.askingPrice)}/kg
                   </Form.Text>
                 </Form.Group>
 
@@ -614,9 +694,9 @@ const BuyerInventory = () => {
                   />
                 </Form.Group>
 
-                <Alert variant="warning" className="mb-0">
-                  <small>
-                    <FiClock className="me-1" />
+                <Alert variant="warning" className="border-0 mb-0">
+                  <small className="d-flex align-items-center">
+                    <FiClock className="me-2" />
                     Your request will be sent to AMIRSAD staff for review. You'll receive a quote within 24 hours.
                   </small>
                 </Alert>
@@ -628,7 +708,7 @@ const BuyerInventory = () => {
           <Button variant="secondary" onClick={() => setShowRFQModal(false)}>
             Cancel
           </Button>
-          <Button variant="warning" onClick={handleCreateRFQ}>
+          <Button variant="warning" onClick={handleCreateRFQ} className="px-4">
             <FiSend className="me-2" />
             Submit RFQ
           </Button>
@@ -642,6 +722,19 @@ const BuyerInventory = () => {
         .hover-card:hover {
           transform: translateY(-5px);
           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1) !important;
+        }
+        .bg-gradient-stats {
+          background: linear-gradient(135deg, #f4a261, #e76f51);
+          border: none;
+          border-radius: 12px;
+        }
+        .pulse-badge {
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.7; }
+          100% { opacity: 1; }
         }
       `}</style>
     </div>

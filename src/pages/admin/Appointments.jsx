@@ -517,15 +517,11 @@ const AdminAppointments = () => {
                   <td>{getTypeBadge(appointment.type)}</td>
                   <td>
                     <div>{appointment.supplier?.fullName || "N/A"}</div>
-                    <small className="text-muted">
-                      {appointment.supplier?.email}
-                    </small>
+                   
                   </td>
                   <td>
                     <div>{appointment.buyer?.fullName || "N/A"}</div>
-                    <small className="text-muted">
-                      {appointment.buyer?.email}
-                    </small>
+                    
                   </td>
                   <td>
                     <div className="fw-bold">

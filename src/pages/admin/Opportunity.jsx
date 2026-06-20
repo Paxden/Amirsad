@@ -359,7 +359,7 @@ const AdminOpportunities = () => {
                       <FiUser className="me-1" size={12} />
                       {opp.supplier?.fullName || "N/A"}
                     </div>
-                    <small className="text-muted">{opp.supplier?.email}</small>
+                   
                   </td>
                   <td>
                     <div className="fw-bold">{opp.weightKg} kg</div>
@@ -375,7 +375,7 @@ const AdminOpportunities = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${opp.askingPrice?.toLocaleString()}
+                      #{opp.askingPrice?.toLocaleString()}
                     </div>
                     <small>per kg</small>
                   </td>
@@ -517,7 +517,7 @@ const AdminOpportunities = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Price per kg</small>
                       <h4 className="fw-bold text-success mb-0">
-                        ${selectedOpportunity.askingPrice?.toLocaleString()}
+                        #{selectedOpportunity.askingPrice?.toLocaleString()}
                       </h4>
                     </div>
                   </Col>

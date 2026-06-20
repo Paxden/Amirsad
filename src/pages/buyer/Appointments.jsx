@@ -1,6 +1,8 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Row,
   Col,
@@ -27,12 +29,13 @@ import {
   FiMail,
   FiVideo,
   FiEdit2,
+  FiTrendingUp,
 } from "react-icons/fi";
 import PageHeader from "../../components/PageHeader";
-import { appointmentApi } from "../../api/appointmentApi";
 import toast from "react-hot-toast";
 
 const BuyerAppointments = () => {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -62,10 +65,23 @@ const BuyerAppointments = () => {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const response = await appointmentApi.getMyAppointments();
-      if (response.success) {
-        setAppointments(response.appointments || []);
-        calculateStats(response.appointments || []);
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.search) queryParams.append("search", filters.search);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/my?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setAppointments(data.appointments || []);
+        calculateStats(data.appointments || []);
       }
     } catch (error) {
       console.error("Failed to fetch appointments:", error);
@@ -75,15 +91,15 @@ const BuyerAppointments = () => {
     }
   };
 
-  const calculateStats = (appointments) => {
+  const calculateStats = (appointmentsData) => {
     const now = new Date();
     const stats = {
-      total: appointments.length,
-      pending: appointments.filter((a) => a.status === "pending").length,
-      confirmed: appointments.filter((a) => a.status === "confirmed").length,
-      completed: appointments.filter((a) => a.status === "completed").length,
-      cancelled: appointments.filter((a) => a.status === "cancelled").length,
-      upcoming: appointments.filter(
+      total: appointmentsData.length,
+      pending: appointmentsData.filter((a) => a.status === "pending").length,
+      confirmed: appointmentsData.filter((a) => a.status === "confirmed").length,
+      completed: appointmentsData.filter((a) => a.status === "completed").length,
+      cancelled: appointmentsData.filter((a) => a.status === "cancelled").length,
+      upcoming: appointmentsData.filter(
         (a) => new Date(a.scheduledDate) > now && a.status === "confirmed",
       ).length,
     };
@@ -92,13 +108,23 @@ const BuyerAppointments = () => {
 
   const handleConfirmAppointment = async (id) => {
     try {
-      const response = await appointmentApi.confirmAppointment(id);
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${id}/confirm`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Appointment confirmed");
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Confirm error:", error);
       toast.error("Failed to confirm appointment");
     }
   };
@@ -108,30 +134,52 @@ const BuyerAppointments = () => {
     if (!reason) return;
 
     try {
-      const response = await appointmentApi.cancelAppointment(id, reason);
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${id}/cancel`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ reason }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Appointment cancelled");
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
-
+      console.error("Cancel error:", error);
       toast.error("Failed to cancel appointment");
     }
   };
 
   const handleMarkAttendance = async (id, attended) => {
     try {
-      const response = await appointmentApi.markAttendance(id, attended);
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${id}/attendance`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ attended }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success(
           `Attendance marked as ${attended ? "present" : "absent"}`,
         );
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
-
+      console.error("Attendance error:", error);
       toast.error("Failed to mark attendance");
     }
   };
@@ -143,20 +191,30 @@ const BuyerAppointments = () => {
     }
 
     try {
-      const response = await appointmentApi.rescheduleAppointment(
-        selectedAppointment._id,
-        rescheduleData.newDate,
-        rescheduleData.reason,
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${selectedAppointment._id}/reschedule`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            newDate: rescheduleData.newDate,
+            reason: rescheduleData.reason,
+          }),
+        }
       );
-      if (response.success) {
+      const data = await response.json();
+      if (data.success) {
         toast.success("Reschedule request submitted. Waiting for approval.");
         setShowRescheduleModal(false);
         setRescheduleData({ newDate: "", reason: "" });
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
-
+      console.error("Reschedule error:", error);
       toast.error("Failed to reschedule appointment");
     }
   };
@@ -249,14 +307,14 @@ const BuyerAppointments = () => {
       <Row className="g-4 mb-4">
         {statCards.map((stat, index) => (
           <Col md={6} lg={3} key={index}>
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm stat-card">
               <Card.Body>
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <p className="text-muted mb-1 small">{stat.title}</p>
                     <h3 className="fw-bold mb-0">{stat.value}</h3>
                   </div>
-                  <div className={`bg-${stat.color} bg-opacity-10 p-3 rounded`}>
+                  <div className={`stat-icon bg-${stat.color}-light`}>
                     <stat.icon size={24} className={`text-${stat.color}`} />
                   </div>
                 </div>
@@ -265,6 +323,28 @@ const BuyerAppointments = () => {
           </Col>
         ))}
       </Row>
+
+      {/* Quick Stats Summary */}
+      <Card className="border-0 shadow-sm mb-4 bg-gradient-appointment">
+        <Card.Body>
+          <Row className="align-items-center text-center text-md-start">
+            <Col md={8}>
+              <h5 className="fw-bold text-white mb-2">📅 Appointment Summary</h5>
+              <p className="text-white-50 mb-0">
+                You have <strong className="text-white">{stats.total}</strong> total appointments, 
+                with <strong className="text-warning">{stats.pending}</strong> pending and 
+                <strong className="text-success"> {stats.confirmed}</strong> confirmed
+              </p>
+            </Col>
+            <Col md={4} className="text-md-end">
+              <Badge bg="light" className="text-dark px-4 py-2">
+                <FiTrendingUp className="me-1" />
+                {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}% Completed
+              </Badge>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       {/* Filters */}
       <Card className="border-0 shadow-sm mb-4">
@@ -315,7 +395,7 @@ const BuyerAppointments = () => {
 
       {/* Upcoming Appointments Alert */}
       {stats.upcoming > 0 && (
-        <Alert variant="info" className="mb-4">
+        <Alert variant="info" className="mb-4 border-0">
           <div className="d-flex align-items-center">
             <FiCalendar size={20} className="me-2" />
             <div>
@@ -483,7 +563,7 @@ const BuyerAppointments = () => {
           {selectedAppointment && (
             <div>
               {/* Header */}
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={6}>
                     <strong>Appointment #:</strong>
@@ -510,7 +590,7 @@ const BuyerAppointments = () => {
 
               {/* Appointment Info */}
               <h6 className="fw-bold mb-3">Appointment Information</h6>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={12}>
                     <strong>Title:</strong>
@@ -544,7 +624,7 @@ const BuyerAppointments = () => {
 
               {/* Supplier Information */}
               <h6 className="fw-bold mb-3">Supplier Information</h6>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={6}>
                     <strong>Name:</strong>
@@ -570,7 +650,7 @@ const BuyerAppointments = () => {
 
               {/* Location */}
               <h6 className="fw-bold mb-3">Location</h6>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 {selectedAppointment.locationType === "virtual" ? (
                   <div>
                     <FiVideo className="me-2" />
@@ -597,7 +677,7 @@ const BuyerAppointments = () => {
 
               {/* Notes */}
               {selectedAppointment.notes && (
-                <Alert variant="info">
+                <Alert variant="info" className="border-0">
                   <strong>Notes:</strong>
                   <p className="mb-0">{selectedAppointment.notes}</p>
                 </Alert>
@@ -635,7 +715,7 @@ const BuyerAppointments = () => {
               {/* Cancellation Info */}
               {selectedAppointment.status === "cancelled" &&
                 selectedAppointment.cancellationReason && (
-                  <Alert variant="danger" className="mt-3">
+                  <Alert variant="danger" className="border-0 mt-3">
                     <strong>Cancellation Reason:</strong>
                     <p className="mb-0">
                       {selectedAppointment.cancellationReason}
@@ -732,6 +812,44 @@ const BuyerAppointments = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <style jsx>{`
+        .stat-card {
+          transition: all 0.3s ease;
+        }
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+        }
+        .stat-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+        }
+        .stat-card:hover .stat-icon {
+          transform: scale(1.1);
+        }
+        .bg-primary-light {
+          background: rgba(244, 162, 97, 0.1);
+        }
+        .bg-success-light {
+          background: rgba(46, 204, 113, 0.1);
+        }
+        .bg-info-light {
+          background: rgba(52, 152, 219, 0.1);
+        }
+        .bg-warning-light {
+          background: rgba(241, 196, 15, 0.1);
+        }
+        .bg-gradient-appointment {
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          border: none;
+        }
+      `}</style>
     </div>
   );
 };

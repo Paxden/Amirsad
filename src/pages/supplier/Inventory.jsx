@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
 import { useState, useEffect } from "react";
 import {
@@ -23,12 +24,32 @@ import {
   FiRefreshCw,
   FiCheckCircle,
   FiClock,
-  FiDollarSign,
   FiMapPin,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
-import { inventoryApi } from "../../api/inventoryApi";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const SupplierInventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -57,40 +78,76 @@ const SupplierInventory = () => {
 
   useEffect(() => {
     fetchInventory();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats from inventory data
+  const calculateStats = (inventoryData) => {
+    if (inventoryData && inventoryData.length > 0) {
+      const availableItems = inventoryData.filter(
+        (i) => i.status === "available",
+      );
+      const totalValue = availableItems.reduce(
+        (sum, i) => sum + (i.availableWeightKg * i.askingPrice || 0),
+        0,
+      );
+      const totalWeight = availableItems.reduce(
+        (sum, i) => sum + (i.availableWeightKg || 0),
+        0,
+      );
+
+      setStats({
+        total: inventoryData.length,
+        available: inventoryData.filter((i) => i.status === "available").length,
+        reserved: inventoryData.filter((i) => i.status === "reserved").length,
+        sold: inventoryData.filter((i) => i.status === "sold").length,
+        pendingApproval: inventoryData.filter(
+          (i) => i.status === "pending_approval",
+        ).length,
+        totalValue: totalValue,
+        totalWeight: totalWeight,
+      });
+    } else {
+      setStats({
+        total: 0,
+        available: 0,
+        reserved: 0,
+        sold: 0,
+        pendingApproval: 0,
+        totalValue: 0,
+        totalWeight: 0,
+      });
+    }
+  };
 
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      const response = await inventoryApi.getSupplierInventory();
-      if (response.success) {
-        setInventory(response.inventory || []);
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.search) queryParams.append("search", filters.search);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/inventory/supplier/me?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setInventory(data.inventory || []);
+        // Calculate stats from the fetched data
+        calculateStats(data.inventory || []);
       }
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
       toast.error("Failed to load inventory");
+      setInventory([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const response = await inventoryApi.getStats();
-      if (response.success) {
-        setStats({
-          total: response.total || 0,
-          available: response.available?.count || 0,
-          reserved: response.reserved?.count || 0,
-          sold: response.sold?.count || 0,
-          pendingApproval: response.pending_approval?.count || 0,
-          totalValue: response.available?.totalValue || 0,
-          totalWeight: response.available?.totalWeight || 0,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -101,21 +158,31 @@ const SupplierInventory = () => {
     }
 
     try {
-      const response = await inventoryApi.updateInventory(selectedItem._id, {
-        askingPrice: parseFloat(editFormData.askingPrice),
-        location: editFormData.location,
-        notes: editFormData.notes,
-      });
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/inventory/${selectedItem._id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            askingPrice: parseFloat(editFormData.askingPrice),
+            location: editFormData.location,
+            notes: editFormData.notes,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Inventory updated successfully");
         setShowEditModal(false);
         fetchInventory();
-        fetchStats();
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to update inventory",
-      );
+      console.error("Update error:", error);
+      toast.error("Failed to update inventory");
     }
   };
 
@@ -126,14 +193,23 @@ const SupplierInventory = () => {
       )
     ) {
       try {
-        const response = await inventoryApi.deleteInventory(id);
-        if (response.success) {
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/inventory/${id}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const data = await response.json();
+        if (data.success) {
           toast.success("Inventory deleted");
           fetchInventory();
-          fetchStats();
         }
       } catch (error) {
-        console.log(error);
+        console.error("Delete error:", error);
         toast.error("Failed to delete inventory");
       }
     }
@@ -190,8 +266,8 @@ const SupplierInventory = () => {
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiDollarSign,
+      value: formatNairaMillions(stats.totalValue || 0),
+      icon: FaHashtag,
       color: "info",
     },
   ];
@@ -301,14 +377,16 @@ const SupplierInventory = () => {
                   gold valued at
                   <strong>
                     {" "}
-                    ${((stats.totalValue || 0) / 1000000).toFixed(2)}M
+                    {formatNairaMillions(stats.totalValue || 0)}
                   </strong>
                 </p>
               </Col>
               <Col md={4} className="text-md-end">
                 <ProgressBar
-                  now={(stats.available / stats.total) * 100}
-                  label={`${Math.round((stats.available / stats.total) * 100)}% Available`}
+                  now={
+                    stats.total > 0 ? (stats.available / stats.total) * 100 : 0
+                  }
+                  label={`${stats.total > 0 ? Math.round((stats.available / stats.total) * 100) : 0}% Available`}
                   variant="success"
                   style={{ height: "30px" }}
                 />
@@ -352,7 +430,11 @@ const SupplierInventory = () => {
                     <div className="fw-bold">{item.weightKg} kg</div>
                     <small>Available: {item.availableWeightKg} kg</small>
                     <ProgressBar
-                      now={(item.availableWeightKg / item.weightKg) * 100}
+                      now={
+                        item.weightKg > 0
+                          ? (item.availableWeightKg / item.weightKg) * 100
+                          : 0
+                      }
                       variant="success"
                       style={{ height: "3px", marginTop: "5px" }}
                     />
@@ -363,7 +445,7 @@ const SupplierInventory = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${item.askingPrice?.toLocaleString()}
+                      {formatNaira(item.askingPrice)}
                     </div>
                     <small>per kg</small>
                   </td>
@@ -502,16 +584,13 @@ const SupplierInventory = () => {
                   <Col md={6}>
                     <strong>Price per kg:</strong>
                     <h5 className="text-success mb-0">
-                      ${selectedItem.askingPrice?.toLocaleString()}
+                      {formatNaira(selectedItem.askingPrice)}
                     </h5>
                   </Col>
                   <Col md={6}>
                     <strong>Total Value:</strong>
                     <h5 className="text-primary mb-0">
-                      $
-                      {(
-                        selectedItem.weightKg * selectedItem.askingPrice
-                      )?.toLocaleString()}
+                      {formatNaira(selectedItem.weightKg * selectedItem.askingPrice)}
                     </h5>
                   </Col>
                   <Col md={12} className="mt-3">
@@ -556,7 +635,7 @@ const SupplierInventory = () => {
           {selectedItem && (
             <Form>
               <Form.Group className="mb-3">
-                <Form.Label>Price per kg ($)</Form.Label>
+                <Form.Label>Price per kg (₦)</Form.Label>
                 <Form.Control
                   type="number"
                   step="100"
@@ -569,8 +648,7 @@ const SupplierInventory = () => {
                   }
                 />
                 <Form.Text className="text-muted">
-                  Current price: ${selectedItem.askingPrice?.toLocaleString()}
-                  /kg
+                  Current price: {formatNaira(selectedItem.askingPrice)}/kg
                 </Form.Text>
               </Form.Group>
 

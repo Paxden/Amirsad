@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -16,9 +16,7 @@ import {
   ProgressBar,
 } from "react-bootstrap";
 import {
-  FiDollarSign,
   FiSearch,
-  FiMail,
   FiFilter,
   FiMoreVertical,
   FiCheckCircle,
@@ -31,12 +29,32 @@ import {
   FiPackage,
   FiTrendingUp,
   FiDownload,
-  
   FiFileText,
-  
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const AdminDeals = () => {
   const [deals, setDeals] = useState([]);
@@ -67,8 +85,36 @@ const AdminDeals = () => {
 
   useEffect(() => {
     fetchDeals();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats from deals data
+  const calculateStats = (dealsData) => {
+    if (dealsData && dealsData.length > 0) {
+      const inProgressStatuses = ["inspection_scheduled", "offer_made", "agreement_signed"];
+      const totalValue = dealsData.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+      const totalWeight = dealsData.reduce((sum, d) => sum + (d.quantityKg || 0), 0);
+      
+      setStats({
+        total: dealsData.length,
+        open: dealsData.filter(d => d.status === "open").length,
+        inProgress: dealsData.filter(d => inProgressStatuses.includes(d.status)).length,
+        completed: dealsData.filter(d => d.status === "closed").length,
+        cancelled: dealsData.filter(d => d.status === "cancelled").length,
+        totalValue: totalValue,
+        totalWeight: totalWeight,
+      });
+    } else {
+      setStats({
+        total: 0,
+        open: 0,
+        inProgress: 0,
+        completed: 0,
+        cancelled: 0,
+        totalValue: 0,
+        totalWeight: 0,
+      });
+    }
+  };
 
   const fetchDeals = async () => {
     try {
@@ -91,38 +137,15 @@ const AdminDeals = () => {
       const data = await response.json();
       if (data.success) {
         setDeals(data.deals || []);
+        calculateStats(data.deals || []);
       }
     } catch (error) {
       console.error("Failed to fetch deals:", error);
       toast.error("Failed to load deals");
+      setDeals([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/deals/stats`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        const summary = data.summary || [];
-        setStats({
-          total: summary.reduce((acc, s) => acc + s.count, 0),
-          open: summary.find(s => s._id === "open")?.count || 0,
-          inProgress: summary.find(s => ["inspection_scheduled", "offer_made", "agreement_signed"].includes(s._id))?.count || 0,
-          completed: summary.find(s => s._id === "closed")?.count || 0,
-          cancelled: summary.find(s => s._id === "cancelled")?.count || 0,
-          totalValue: summary.reduce((acc, s) => acc + (s.totalValue || 0), 0),
-          totalWeight: summary.reduce((acc, s) => acc + (s.totalWeight || 0), 0),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -154,10 +177,9 @@ const AdminDeals = () => {
         setShowUpdateModal(false);
         setUpdateData({ status: "", notes: "" });
         fetchDeals();
-        fetchStats();
       }
     } catch (error) {
-        console.error("Failed to update deal status:", error);
+      console.error("Failed to update deal status:", error);
       toast.error("Failed to update deal status");
     }
   };
@@ -220,13 +242,13 @@ const AdminDeals = () => {
     {
       title: "Total Deals",
       value: stats.total,
-      icon: FiDollarSign,
+      icon: FaHashtag,
       color: "primary",
       trend: "+12%",
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
+      value: formatNairaMillions(stats.totalValue || 0),
       icon: FiTrendingUp,
       color: "success",
       trend: "+8%",
@@ -338,10 +360,10 @@ const AdminDeals = () => {
                 </Col>
                 <Col md={4}>
                   <ProgressBar className="mt-2">
-                    <ProgressBar variant="primary" now={(stats.open / stats.total) * 100} label="Open" />
-                    <ProgressBar variant="warning" now={(stats.inProgress / stats.total) * 100} label="In Progress" />
-                    <ProgressBar variant="success" now={(stats.completed / stats.total) * 100} label="Completed" />
-                    <ProgressBar variant="danger" now={(stats.cancelled / stats.total) * 100} label="Cancelled" />
+                    <ProgressBar variant="primary" now={stats.total > 0 ? (stats.open / stats.total) * 100 : 0} label="Open" />
+                    <ProgressBar variant="warning" now={stats.total > 0 ? (stats.inProgress / stats.total) * 100 : 0} label="In Progress" />
+                    <ProgressBar variant="success" now={stats.total > 0 ? (stats.completed / stats.total) * 100 : 0} label="Completed" />
+                    <ProgressBar variant="danger" now={stats.total > 0 ? (stats.cancelled / stats.total) * 100 : 0} label="Cancelled" />
                   </ProgressBar>
                 </Col>
               </Row>
@@ -430,11 +452,11 @@ const AdminDeals = () => {
                       <FiUser className="me-1" size={12} />
                       {deal.supplier?.fullName || "N/A"}
                     </div>
-                    <small className="text-muted">{deal.supplier?.email}</small>
+                  
                   </td>
                   <td>
                     <div>{deal.buyer?.fullName || "N/A"}</div>
-                    <small className="text-muted">{deal.buyer?.email}</small>
+                    
                   </td>
                   <td>
                     <div className="fw-bold">{deal.quantityKg} kg</div>
@@ -442,7 +464,7 @@ const AdminDeals = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${deal.totalAmount?.toLocaleString()}
+                      {formatNaira(deal.totalAmount)}
                     </div>
                     <small>{deal.currency}</small>
                   </td>
@@ -491,7 +513,7 @@ const AdminDeals = () => {
                             onClick={() => {
                               const reason = prompt("Enter cancellation reason:");
                               if (reason) {
-                                handleUpdateStatus();
+                                // handle cancellation
                               }
                             }}
                           >
@@ -507,7 +529,7 @@ const AdminDeals = () => {
           </Table>
           {deals.length === 0 && (
             <div className="text-center py-5">
-              <FiDollarSign size={48} className="text-muted mb-3" />
+              <FaHashtag size={48} className="text-muted mb-3" />
               <p className="text-muted">No deals found</p>
             </div>
           )}
@@ -553,8 +575,7 @@ const AdminDeals = () => {
                     <div className="mt-2">
                       <div className="fw-bold">{selectedDeal.supplier?.fullName}</div>
                       <div className="small text-muted">
-                        <FiMail className="me-1" size={12} />
-                        {selectedDeal.supplier?.email}
+                       
                       </div>
                       <div className="small text-muted">
                         <FiPackage className="me-1" size={12} />
@@ -567,8 +588,7 @@ const AdminDeals = () => {
                     <div className="mt-2">
                       <div className="fw-bold">{selectedDeal.buyer?.fullName}</div>
                       <div className="small text-muted">
-                        <FiMail className="me-1" size={12} />
-                        {selectedDeal.buyer?.email}
+                       
                       </div>
                       <div className="small text-muted">
                         <FiFileText className="me-1" size={12} />
@@ -593,7 +613,7 @@ const AdminDeals = () => {
                     <div className="text-center">
                       <small className="text-muted">Price per kg</small>
                       <h5 className="fw-bold text-primary mb-0">
-                        ${selectedDeal.agreedPricePerKg?.toLocaleString()}
+                        {formatNaira(selectedDeal.agreedPricePerKg)}
                       </h5>
                     </div>
                   </Col>
@@ -601,7 +621,7 @@ const AdminDeals = () => {
                     <div className="text-center">
                       <small className="text-muted">Total Amount</small>
                       <h5 className="fw-bold text-success mb-0">
-                        ${selectedDeal.totalAmount?.toLocaleString()}
+                        {formatNaira(selectedDeal.totalAmount)}
                       </h5>
                     </div>
                   </Col>
@@ -642,7 +662,7 @@ const AdminDeals = () => {
                       </Col>
                       <Col md={4}>
                         <strong>Amount Paid:</strong>
-                        <p>${selectedDeal.payment.amount?.toLocaleString() || 0}</p>
+                        <p>{formatNaira(selectedDeal.payment.amount || 0)}</p>
                       </Col>
                       {selectedDeal.payment.paidAt && (
                         <Col md={4}>

@@ -1,6 +1,8 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Row,
   Col,
@@ -16,7 +18,6 @@ import {
   ProgressBar,
 } from "react-bootstrap";
 import {
-  FiDollarSign,
   FiSearch,
   FiEye,
   FiCheckCircle,
@@ -27,11 +28,33 @@ import {
   FiTrendingUp,
   FiStar,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
-import { dealsApi } from "../../api/dealsApi";
 import toast from "react-hot-toast";
 
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
+
 const BuyerMyDeals = () => {
+  const navigate = useNavigate();
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDeal, setSelectedDeal] = useState(null);
@@ -61,28 +84,43 @@ const BuyerMyDeals = () => {
   const fetchDeals = async () => {
     try {
       setLoading(true);
-      const response = await dealsApi.getMyDeals();
-      if (response.success) {
-        setDeals(response.deals || []);
-        calculateStats(response.deals || []);
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.search) queryParams.append("search", filters.search);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/deals/my`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setDeals(data.deals || []);
+        calculateStats(data.deals || []);
       }
     } catch (error) {
       console.error("Failed to fetch deals:", error);
       toast.error("Failed to load deals");
+      setDeals([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (deals) => {
+  const calculateStats = (dealsData) => {
     const activeStatuses = ["open", "inspection_scheduled", "offer_made", "agreement_signed", "payment_pending", "delivery_scheduled"];
     const stats = {
-      total: deals.length,
-      active: deals.filter(d => activeStatuses.includes(d.status)).length,
-      completed: deals.filter(d => d.status === "closed").length,
-      cancelled: deals.filter(d => d.status === "cancelled").length,
-      totalValue: deals.reduce((sum, d) => sum + (d.totalAmount || 0), 0),
-      totalWeight: deals.reduce((sum, d) => sum + (d.quantityKg || 0), 0),
+      total: dealsData.length,
+      active: dealsData.filter(d => activeStatuses.includes(d.status)).length,
+      completed: dealsData.filter(d => d.status === "closed").length,
+      cancelled: dealsData.filter(d => d.status === "cancelled").length,
+      totalValue: dealsData.reduce((sum, d) => sum + (d.totalAmount || 0), 0),
+      totalWeight: dealsData.reduce((sum, d) => sum + (d.quantityKg || 0), 0),
     };
     setStats(stats);
   };
@@ -94,18 +132,30 @@ const BuyerMyDeals = () => {
     }
 
     try {
-      const response = await dealsApi.rateDeal(selectedDeal._id, {
-        supplierRating: ratingData.rating,
-        supplierFeedback: ratingData.feedback,
-      });
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/deals/${selectedDeal._id}/rate`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            supplierRating: ratingData.rating,
+            supplierFeedback: ratingData.feedback,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Thank you for your feedback!");
         setShowRatingModal(false);
         setRatingData({ rating: 5, feedback: "" });
         fetchDeals();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Rating error:", error);
       toast.error("Failed to submit rating");
     }
   };
@@ -168,7 +218,7 @@ const BuyerMyDeals = () => {
     {
       title: "Total Deals",
       value: stats.total,
-      icon: FiDollarSign,
+      icon: FaHashtag,
       color: "primary",
     },
     {
@@ -185,7 +235,7 @@ const BuyerMyDeals = () => {
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
+      value: formatNairaMillions(stats.totalValue || 0),
       icon: FiPackage,
       color: "info",
     },
@@ -216,14 +266,14 @@ const BuyerMyDeals = () => {
       <Row className="g-4 mb-4">
         {statCards.map((stat, index) => (
           <Col md={6} lg={3} key={index}>
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm stat-card">
               <Card.Body>
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <p className="text-muted mb-1 small">{stat.title}</p>
                     <h3 className="fw-bold mb-0">{stat.value}</h3>
                   </div>
-                  <div className={`bg-${stat.color} bg-opacity-10 p-3 rounded`}>
+                  <div className={`stat-icon bg-${stat.color}-light`}>
                     <stat.icon size={24} className={`text-${stat.color}`} />
                   </div>
                 </div>
@@ -232,6 +282,28 @@ const BuyerMyDeals = () => {
           </Col>
         ))}
       </Row>
+
+      {/* Quick Stats Summary */}
+      <Card className="border-0 shadow-sm mb-4 bg-gradient-deals">
+        <Card.Body>
+          <Row className="align-items-center text-center text-md-start">
+            <Col md={8}>
+              <h5 className="fw-bold text-white mb-2">📊 Deals Summary</h5>
+              <p className="text-white-50 mb-0">
+                You have <strong className="text-white">{stats.total}</strong> total deals, 
+                with <strong className="text-warning">{stats.active}</strong> active and 
+                <strong className="text-success"> {stats.completed}</strong> completed
+              </p>
+            </Col>
+            <Col md={4} className="text-md-end">
+              <Badge bg="light" className="text-dark px-4 py-2">
+                <FiTrendingUp className="me-1" />
+                {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}% Success
+              </Badge>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       {/* Filters */}
       <Card className="border-0 shadow-sm mb-4">
@@ -310,7 +382,7 @@ const BuyerMyDeals = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${deal.totalAmount?.toLocaleString()}
+                      {formatNaira(deal.totalAmount)}
                     </div>
                     <small>{deal.currency}</small>
                   </td>
@@ -365,7 +437,7 @@ const BuyerMyDeals = () => {
           </Table>
           {deals.length === 0 && (
             <div className="text-center py-5">
-              <FiDollarSign size={48} className="text-muted mb-3" />
+              <FaHashtag size={48} className="text-muted mb-3" />
               <p className="text-muted">No deals found</p>
               <p className="text-muted small">
                 When you accept RFQ quotes, they will appear here as deals.
@@ -384,7 +456,7 @@ const BuyerMyDeals = () => {
           {selectedDeal && (
             <div>
               {/* Header */}
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={4}>
                     <strong>Status:</strong>
@@ -403,7 +475,7 @@ const BuyerMyDeals = () => {
 
               {/* Supplier Information */}
               <h6 className="fw-bold mb-3">Supplier Information</h6>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={6}>
                     <strong>Name:</strong>
@@ -426,7 +498,7 @@ const BuyerMyDeals = () => {
 
               {/* Deal Details */}
               <h6 className="fw-bold mb-3">Deal Specifications</h6>
-              <div className="bg-light p-3 rounded mb-4">
+              <div className="bg-light p-3 rounded-3 mb-4">
                 <Row>
                   <Col md={4}>
                     <div className="text-center p-2 border rounded">
@@ -438,7 +510,7 @@ const BuyerMyDeals = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Price per kg</small>
                       <h5 className="fw-bold text-primary mb-0">
-                        ${selectedDeal.agreedPricePerKg?.toLocaleString()}
+                        {formatNaira(selectedDeal.agreedPricePerKg)}
                       </h5>
                     </div>
                   </Col>
@@ -446,7 +518,7 @@ const BuyerMyDeals = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Total Amount</small>
                       <h5 className="fw-bold text-success mb-0">
-                        ${selectedDeal.totalAmount?.toLocaleString()}
+                        {formatNaira(selectedDeal.totalAmount)}
                       </h5>
                     </div>
                   </Col>
@@ -457,7 +529,7 @@ const BuyerMyDeals = () => {
               {selectedDeal.payment && (
                 <>
                   <h6 className="fw-bold mb-3">Payment Information</h6>
-                  <div className="bg-light p-3 rounded mb-4">
+                  <div className="bg-light p-3 rounded-3 mb-4">
                     <Row>
                       <Col md={4}>
                         <strong>Status:</strong>
@@ -467,7 +539,7 @@ const BuyerMyDeals = () => {
                       </Col>
                       <Col md={4}>
                         <strong>Amount Paid:</strong>
-                        <p>${selectedDeal.payment.amount?.toLocaleString() || 0}</p>
+                        <p>{formatNaira(selectedDeal.payment.amount || 0)}</p>
                       </Col>
                       {selectedDeal.payment.paidAt && (
                         <Col md={4}>
@@ -484,7 +556,7 @@ const BuyerMyDeals = () => {
               {selectedDeal.delivery && (
                 <>
                   <h6 className="fw-bold mb-3">Delivery Information</h6>
-                  <div className="bg-light p-3 rounded mb-4">
+                  <div className="bg-light p-3 rounded-3 mb-4">
                     <Row>
                       <Col md={6}>
                         <strong>Method:</strong>
@@ -507,7 +579,7 @@ const BuyerMyDeals = () => {
 
               {/* Timeline */}
               <h6 className="fw-bold mb-3">Deal Timeline</h6>
-              <div className="bg-light p-3 rounded">
+              <div className="bg-light p-3 rounded-3">
                 {selectedDeal.statusHistory && selectedDeal.statusHistory.length > 0 ? (
                   <div className="timeline">
                     {selectedDeal.statusHistory.map((history, index) => (
@@ -527,7 +599,7 @@ const BuyerMyDeals = () => {
 
               {/* Ratings */}
               {selectedDeal.supplierRating && (
-                <Alert variant="info" className="mt-3">
+                <Alert variant="info" className="border-0 mt-3">
                   <strong>Supplier Rating:</strong>
                   <div className="mt-1">
                     {[...Array(5)].map((_, i) => (
@@ -597,6 +669,41 @@ const BuyerMyDeals = () => {
       </Modal>
 
       <style jsx>{`
+        .stat-card {
+          transition: all 0.3s ease;
+        }
+        .stat-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+        }
+        .stat-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+        }
+        .stat-card:hover .stat-icon {
+          transform: scale(1.1);
+        }
+        .bg-primary-light {
+          background: rgba(244, 162, 97, 0.1);
+        }
+        .bg-success-light {
+          background: rgba(46, 204, 113, 0.1);
+        }
+        .bg-info-light {
+          background: rgba(52, 152, 219, 0.1);
+        }
+        .bg-warning-light {
+          background: rgba(241, 196, 15, 0.1);
+        }
+        .bg-gradient-deals {
+          background: linear-gradient(135deg, #2a9d8f, #264653);
+          border: none;
+        }
         .timeline-item {
           position: relative;
           padding-left: 20px;

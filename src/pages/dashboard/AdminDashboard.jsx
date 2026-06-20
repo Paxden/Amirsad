@@ -28,6 +28,7 @@ import {
   FiArrowRight,
   FiDownload,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import {
   Line,
   PieChart,
@@ -46,6 +47,27 @@ import { dashboardApi } from "../../api/dashboardApi";
 import { supplierApi } from "../../api/supplierApi";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -81,9 +103,8 @@ const AdminDashboard = () => {
     try {
       const response = await dashboardApi.getCharts(chartPeriod);
       if (response.success && response.data) {
-        // Ensure response.data is an array
         const dataArray = Array.isArray(response.data) ? response.data : [];
-        setChartData(dataArray); 
+        setChartData(dataArray);
       } else {
         setChartData([
           { date: "Week 1", revenue: 0, users: 0 },
@@ -171,7 +192,7 @@ const AdminDashboard = () => {
       trend: "+15%",
       trendUp: true,
       link: "/admin/deals",
-      detail: `$${((data?.financial?.totalTransactionValue || 0) / 1000000).toFixed(2)}M value`,
+      detail: `${formatNairaMillions(data?.financial?.totalTransactionValue || 0)} value`,
     },
     {
       title: "Upcoming Appointments",
@@ -183,8 +204,8 @@ const AdminDashboard = () => {
     },
     {
       title: "Total Transaction Value",
-      value: `#${((data?.financial?.totalTransactionValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiHash,
+      value: formatNairaMillions(data?.financial?.totalTransactionValue || 0),
+      icon: FaHashtag,
       color: "success",
       trend: "+23%",
       trendUp: true,
@@ -384,9 +405,16 @@ const AdminDashboard = () => {
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
-                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="left" tickFormatter={(value) => `₦${(value / 1000000).toFixed(0)}M`} />
                   <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value, name) => {
+                      if (name === "Revenue" || name === "revenue") {
+                        return formatNaira(value);
+                      }
+                      return value;
+                    }}
+                  />
                   <Legend />
                   <Area
                     yAxisId="left"
@@ -396,7 +424,7 @@ const AdminDashboard = () => {
                     stroke="#f4a261"
                     fill="#f4a261"
                     fillOpacity={0.3}
-                    name="Revenue ($)"
+                    name="Revenue (₦)"
                   />
                   <Line
                     yAxisId="right"

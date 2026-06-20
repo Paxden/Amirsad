@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -27,12 +27,10 @@ import {
   FiEye,
   FiEdit2,
   FiRefreshCw,
-  FiDollarSign,
+  FiHash,
   FiUser,
   FiCalendar,
-  
   FiSend,
-  
 } from "react-icons/fi";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
@@ -65,8 +63,31 @@ const AdminRFQs = () => {
 
   useEffect(() => {
     fetchRFQs();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats from RFQs data
+  const calculateStats = (rfqsData) => {
+    if (rfqsData && rfqsData.length > 0) {
+      const statsData = {
+        total: rfqsData.length,
+        pending: rfqsData.filter(r => r.status === "pending" || r.status === "under_review").length,
+        quoted: rfqsData.filter(r => r.status === "quoted").length,
+        accepted: rfqsData.filter(r => r.status === "accepted").length,
+        rejected: rfqsData.filter(r => r.status === "rejected" || r.status === "cancelled").length,
+        totalValue: rfqsData.reduce((sum, r) => sum + (r.offeredTotalPrice || 0), 0),
+      };
+      setStats(statsData);
+    } else {
+      setStats({
+        total: 0,
+        pending: 0,
+        quoted: 0,
+        accepted: 0,
+        rejected: 0,
+        totalValue: 0,
+      });
+    }
+  };
 
   const fetchRFQs = async () => {
     try {
@@ -89,29 +110,13 @@ const AdminRFQs = () => {
       const data = await response.json();
       if (data.success) {
         setRfqs(data.rfqs || []);
+        calculateStats(data.rfqs || []);
       }
     } catch (error) {
       console.error("Failed to fetch RFQs:", error);
       toast.error("Failed to load RFQs");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/rfqs/admin/stats`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.stats || {});
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -131,7 +136,11 @@ const AdminRFQs = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(responseData),
+          body: JSON.stringify({
+            quotePricePerKg: parseFloat(responseData.quotePricePerKg),
+            staffResponse: responseData.staffResponse,
+            staffNotes: responseData.staffNotes,
+          }),
         }
       );
       const data = await response.json();
@@ -140,11 +149,9 @@ const AdminRFQs = () => {
         setShowRespondModal(false);
         setResponseData({ quotePricePerKg: "", staffResponse: "", staffNotes: "" });
         fetchRFQs();
-        fetchStats();
       }
     } catch (error) {
-        console.log(error);
-        
+      console.error("Respond error:", error);
       toast.error("Failed to send response");
     }
   };
@@ -187,26 +194,26 @@ const AdminRFQs = () => {
   const statCards = [
     {
       title: "Total RFQs",
-      value: stats.totalRFQs || 0,
+      value: stats.total || 0,
       icon: FiFileText,
       color: "primary",
     },
     {
       title: "Pending",
-      value: stats.pendingCount || 0,
+      value: stats.pending || 0,
       icon: FiClock,
       color: "warning",
     },
     {
       title: "Accepted",
-      value: stats.acceptedRFQs || 0,
+      value: stats.accepted || 0,
       icon: FiCheckCircle,
       color: "success",
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiDollarSign,
+      value: `#${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
+      icon: FiHash,
       color: "info",
     },
   ];
@@ -309,10 +316,10 @@ const AdminRFQs = () => {
         onSelect={(key) => setFilters({ ...filters, status: key === "all" ? "" : key })}
       >
         <Tab eventKey="all" title="All RFQs" />
-        <Tab eventKey="pending" title="Pending" />
+        <Tab eventKey="pending" title={`Pending (${stats.pending})`} />
         <Tab eventKey="under_review" title="Under Review" />
-        <Tab eventKey="quoted" title="Quoted" />
-        <Tab eventKey="accepted" title="Accepted" />
+        <Tab eventKey="quoted" title={`Quoted (${stats.quoted})`} />
+        <Tab eventKey="accepted" title={`Accepted (${stats.accepted})`} />
       </Tabs>
 
       {/* RFQ Table */}
@@ -335,7 +342,7 @@ const AdminRFQs = () => {
               {rfqs.map((rfq) => (
                 <tr key={rfq._id}>
                   <td>
-                    <div className="fw-bold">{rfq.rfqNumber}</div>
+                    <div className="fw-bold">{rfq.rfqNumber?.slice(-5)}</div>
                     <small className="text-muted">{rfq._id?.slice(-6)}</small>
                   </td>
                   <td>
@@ -355,9 +362,9 @@ const AdminRFQs = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-primary">
-                      ${rfq.offeredPricePerKg?.toLocaleString()}/kg
+                      #{rfq.offeredPricePerKg?.toLocaleString()}/kg
                     </div>
-                    <small>Total: ${(rfq.offeredTotalPrice || 0).toLocaleString()}</small>
+                    <small>Total: #{(rfq.offeredTotalPrice || 0).toLocaleString()}</small>
                   </td>
                   <td>
                     {getStatusBadge(rfq.status)}
@@ -474,7 +481,7 @@ const AdminRFQs = () => {
                     <div className="text-center">
                       <small className="text-muted">Offer Price/kg</small>
                       <h5 className="fw-bold text-primary mb-0">
-                        ${selectedRFQ.offeredPricePerKg?.toLocaleString()}
+                        #{selectedRFQ.offeredPricePerKg?.toLocaleString()}
                       </h5>
                     </div>
                   </Col>
@@ -482,7 +489,7 @@ const AdminRFQs = () => {
                     <div className="text-center">
                       <small className="text-muted">Total Value</small>
                       <h5 className="fw-bold text-success mb-0">
-                        ${(selectedRFQ.offeredTotalPrice || 0).toLocaleString()}
+                        #{(selectedRFQ.offeredTotalPrice || 0).toLocaleString()}
                       </h5>
                     </div>
                   </Col>
@@ -513,7 +520,7 @@ const AdminRFQs = () => {
                   <p className="mb-0">{selectedRFQ.staffResponse}</p>
                   {selectedRFQ.quotePricePerKg && (
                     <small className="text-muted">
-                      Quoted Price: ${selectedRFQ.quotePricePerKg}/kg
+                      Quoted Price: #{selectedRFQ.quotePricePerKg}/kg
                     </small>
                   )}
                 </Alert>
@@ -557,7 +564,7 @@ const AdminRFQs = () => {
                 <strong>RFQ: {selectedRFQ.rfqNumber}</strong>
                 <p className="mb-0 mt-2">
                   Buyer: {selectedRFQ.buyer?.fullName}<br />
-                  Requested: {selectedRFQ.requestedWeightKg} kg @ ${selectedRFQ.offeredPricePerKg}/kg
+                  Requested: {selectedRFQ.requestedWeightKg} kg @ #{selectedRFQ.offeredPricePerKg}/kg
                 </p>
               </Alert>
 
@@ -565,7 +572,7 @@ const AdminRFQs = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>Quote Price (per kg) *</Form.Label>
                   <InputGroup>
-                    <InputGroup.Text>$</InputGroup.Text>
+                    <InputGroup.Text>#</InputGroup.Text>
                     <Form.Control
                       type="number"
                       step="100"

@@ -1,4 +1,4 @@
-
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
 import { useState, useEffect } from "react";
 import {
@@ -25,10 +25,11 @@ import {
   FiMapPin,
 } from "react-icons/fi";
 import PageHeader from "../../components/PageHeader";
-import { supplierApi } from "../../api/supplierApi";
+import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 
 const SupplierKYCStatus = () => {
+  const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [kycData, setKycData] = useState(null);
@@ -58,39 +59,69 @@ const SupplierKYCStatus = () => {
     fetchKYCStatus();
   }, []);
 
- const fetchKYCStatus = async () => {
-  try {
-    setLoading(true);
-    // Try to fetch from API
-    const response = await supplierApi.getKYCStatus();
-    if (response.success) {
-      setKycData(response.kyc || response.data);
-    }
-  } catch (error) {
-    console.error("Failed to fetch KYC status:", error);
-    // Use mock data as fallback
-    setKycData({
-      verificationStatus: "not_submitted",
-    });
-    // Don't show error toast for this
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchKYCStatus = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      
+      // First check if user object from context has KYC status
+      if (user?.kyc?.verificationStatus) {
+        setKycData(user.kyc);
+        setLoading(false);
+        return;
+      }
 
-const handleFileChange = (docType, file) => {
-  if (file) {
-    setFormData({
-      ...formData,
-      documents: {
-        ...formData.documents,
-        [docType]: file,
-      },
-    });
-    // Simulate upload progress
-    setUploadProgress({ ...uploadProgress, [docType]: 100 });
-  }
-};
+      // If not, fetch from API
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/suppliers/kyc/status`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      const data = await response.json();
+      if (data.success) {
+        setKycData(data.kyc || data.data || { verificationStatus: "not_submitted" });
+        
+        // Update user context if needed
+        if (data.kyc && updateUser) {
+          updateUser({ ...user, kyc: data.kyc });
+        }
+      } else {
+        // Fallback: check user object
+        if (user?.kyc) {
+          setKycData(user.kyc);
+        } else {
+          setKycData({ verificationStatus: "not_submitted" });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch KYC status:", error);
+      // Fallback: use user data from context
+      if (user?.kyc) {
+        setKycData(user.kyc);
+      } else {
+        setKycData({ verificationStatus: "not_submitted" });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileChange = (docType, file) => {
+    if (file) {
+      setFormData({
+        ...formData,
+        documents: {
+          ...formData.documents,
+          [docType]: file,
+        },
+      });
+      setUploadProgress({ ...uploadProgress, [docType]: 100 });
+    }
+  };
 
   const handleSubmitKYC = async () => {
     if (
@@ -102,7 +133,6 @@ const handleFileChange = (docType, file) => {
       return;
     }
 
-    // Fix: Define requiredDocs array correctly
     const requiredDocs = [
       "certificateOfIncorporation",
       "taxClearanceCertificate",
@@ -110,7 +140,6 @@ const handleFileChange = (docType, file) => {
       "proofOfAddress",
     ];
 
-    // Check if all required documents are uploaded
     const missingDocs = requiredDocs.filter((doc) => !formData.documents[doc]);
 
     if (missingDocs.length > 0) {
@@ -122,6 +151,7 @@ const handleFileChange = (docType, file) => {
 
     setSubmitting(true);
     try {
+      const token = localStorage.getItem("token");
       const submitFormData = new FormData();
       submitFormData.append("businessName", formData.businessName);
       submitFormData.append("registrationNumber", formData.registrationNumber);
@@ -135,20 +165,29 @@ const handleFileChange = (docType, file) => {
         JSON.stringify(formData.businessAddress),
       );
 
-      // Append documents
       Object.keys(formData.documents).forEach((key) => {
         if (formData.documents[key]) {
           submitFormData.append(key, formData.documents[key]);
         }
       });
 
-      const response = await supplierApi.submitKYC(submitFormData);
-      if (response.success) {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/suppliers/submit-kyc`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: submitFormData,
+        }
+      );
+      
+      const data = await response.json();
+      if (data.success) {
         toast.success(
           "KYC submitted successfully! Our team will review your application.",
         );
         setShowSubmitModal(false);
-        // Reset form
         setFormData({
           businessName: "",
           registrationNumber: "",
@@ -169,14 +208,16 @@ const handleFileChange = (docType, file) => {
           },
         });
         fetchKYCStatus();
+      } else {
+        toast.error(data.message || "Failed to submit KYC");
       }
     } catch (error) {
+      console.error("Submit KYC error:", error);
       toast.error(error.response?.data?.message || "Failed to submit KYC");
     } finally {
       setSubmitting(false);
     }
   };
-
 
   const getStatusConfig = (status) => {
     const configs = {
@@ -186,6 +227,7 @@ const handleFileChange = (docType, file) => {
         title: "KYC Not Submitted",
         message: "Please complete your KYC verification to start selling gold.",
         action: "Submit KYC Now",
+        showSubmit: true,
       },
       pending: {
         icon: FiClock,
@@ -194,6 +236,7 @@ const handleFileChange = (docType, file) => {
         message:
           "Your documents are being reviewed by our team. This usually takes 1-2 business days.",
         action: "View Submission",
+        showSubmit: false,
       },
       under_review: {
         icon: FiClock,
@@ -202,14 +245,16 @@ const handleFileChange = (docType, file) => {
         message:
           "Your application is being processed. We'll notify you once completed.",
         action: "Track Status",
+        showSubmit: false,
       },
       approved: {
         icon: FiCheckCircle,
         color: "success",
-        title: "KYC Approved",
+        title: "KYC Approved 🎉",
         message:
           "Your account is fully verified. You can now list and sell gold.",
         action: "View Certificate",
+        showSubmit: false,
       },
       rejected: {
         icon: FiXCircle,
@@ -218,6 +263,7 @@ const handleFileChange = (docType, file) => {
         message:
           "Your application was not approved. Please check the reason and resubmit.",
         action: "Resubmit Application",
+        showSubmit: true,
       },
     };
     return configs[status] || configs.not_submitted;
@@ -226,6 +272,10 @@ const handleFileChange = (docType, file) => {
   const kycStatus = kycData?.verificationStatus || "not_submitted";
   const statusConfig = getStatusConfig(kycStatus);
   const StatusIcon = statusConfig.icon;
+
+  // Log the status for debugging
+  console.log("Current KYC Status:", kycStatus);
+  console.log("KYC Data:", kycData);
 
   if (loading) {
     return (
@@ -271,7 +321,7 @@ const handleFileChange = (docType, file) => {
                 <Alert variant="success" className="text-start">
                   <FiCheckCircle className="me-2" />
                   <strong>Congratulations!</strong> Your account is fully
-                  verified.
+                  verified. You can now start selling gold.
                 </Alert>
               )}
 
@@ -280,17 +330,6 @@ const handleFileChange = (docType, file) => {
                   <strong>Reason for rejection:</strong>
                   <p className="mb-0 mt-1">{kycData.rejectionReason}</p>
                 </Alert>
-              )}
-
-              {(kycStatus === "not_submitted" || kycStatus === "rejected") && (
-                <Button
-                  variant="warning"
-                  size="lg"
-                  onClick={() => setShowSubmitModal(true)}
-                >
-                  <FiUpload className="me-2" />
-                  {statusConfig.action}
-                </Button>
               )}
 
               {kycStatus === "pending" && (
@@ -306,6 +345,28 @@ const handleFileChange = (docType, file) => {
                     Estimated completion: 1-2 business days
                   </p>
                 </div>
+              )}
+
+              {(kycStatus === "not_submitted" || kycStatus === "rejected") && (
+                <Button
+                  variant="warning"
+                  size="lg"
+                  onClick={() => setShowSubmitModal(true)}
+                >
+                  <FiUpload className="me-2" />
+                  {statusConfig.action}
+                </Button>
+              )}
+
+              {kycStatus === "approved" && (
+                <Button
+                  variant="success"
+                  size="lg"
+                  disabled
+                >
+                  <FiCheckCircle className="me-2" />
+                  KYC Verified ✓
+                </Button>
               )}
             </Card.Body>
           </Card>

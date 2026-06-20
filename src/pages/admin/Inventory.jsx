@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -26,13 +26,33 @@ import {
   FiClock,
   FiTrash2,
   FiRefreshCw,
-  FiDollarSign,
   FiMapPin,
- 
   FiTrendingUp,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const AdminInventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -54,12 +74,39 @@ const AdminInventory = () => {
     pending: 0,
     sold: 0,
     totalValue: 0,
+    totalWeight: 0,
   });
 
   useEffect(() => {
     fetchInventory();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats from inventory data
+  const calculateStats = (inventoryData) => {
+    if (inventoryData && inventoryData.length > 0) {
+      const availableItems = inventoryData.filter(i => i.status === "available");
+      const totalValue = availableItems.reduce((sum, i) => sum + (i.availableWeightKg * i.askingPrice || 0), 0);
+      const totalWeight = availableItems.reduce((sum, i) => sum + (i.availableWeightKg || 0), 0);
+      
+      setStats({
+        total: inventoryData.length,
+        available: inventoryData.filter(i => i.status === "available").length,
+        pending: inventoryData.filter(i => i.status === "pending_approval").length,
+        sold: inventoryData.filter(i => i.status === "sold").length,
+        totalValue: totalValue,
+        totalWeight: totalWeight,
+      });
+    } else {
+      setStats({
+        total: 0,
+        available: 0,
+        pending: 0,
+        sold: 0,
+        totalValue: 0,
+        totalWeight: 0,
+      });
+    }
+  };
 
   const fetchInventory = async () => {
     try {
@@ -77,37 +124,21 @@ const AdminInventory = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       const data = await response.json();
       if (data.success) {
         setInventory(data.inventory || []);
+        // Calculate stats from the fetched data
+        calculateStats(data.inventory || []);
       }
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
       toast.error("Failed to load inventory");
+      setInventory([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/inventory/stats`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.available || {});
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -123,17 +154,17 @@ const AdminInventory = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ notes: approveNotes }),
-        },
+        }
       );
       const data = await response.json();
       if (data.success) {
         toast.success("Inventory approved successfully");
         setShowApproveModal(false);
+        setApproveNotes("");
         fetchInventory();
-        fetchStats();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Approve error:", error);
       toast.error("Failed to approve inventory");
     }
   };
@@ -154,18 +185,17 @@ const AdminInventory = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ rejectionReason: rejectReason }),
-        },
+        }
       );
       const data = await response.json();
       if (data.success) {
         toast.success("Inventory rejected");
+        setRejectReason("");
         setShowDetailModal(false);
         fetchInventory();
-        fetchStats();
       }
     } catch (error) {
-        console.log(error)
-
+      console.error("Reject error:", error);
       toast.error("Failed to reject inventory");
     }
   };
@@ -181,17 +211,15 @@ const AdminInventory = () => {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          },
+          }
         );
         const data = await response.json();
         if (data.success) {
           toast.success("Inventory deleted successfully");
           fetchInventory();
-          fetchStats();
         }
       } catch (error) {
-        console.log(error)
-
+        console.error("Delete error:", error);
         toast.error("Failed to delete inventory");
       }
     }
@@ -224,7 +252,7 @@ const AdminInventory = () => {
   const statCards = [
     {
       title: "Total Items",
-      value: stats.count || 0,
+      value: stats.total || 0,
       icon: FiPackage,
       color: "primary",
     },
@@ -237,13 +265,13 @@ const AdminInventory = () => {
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiDollarSign,
+      value: formatNairaMillions(stats.totalValue || 0),
+      icon: FaHashtag,
       color: "warning",
     },
     {
       title: "Pending Approval",
-      value: inventory.filter((i) => i.status === "pending_approval").length,
+      value: stats.pending || 0,
       icon: FiClock,
       color: "info",
     },
@@ -382,7 +410,7 @@ const AdminInventory = () => {
                   </td>
                   <td>
                     <div>{item.supplier?.fullName || "N/A"}</div>
-                    <small className="text-muted">{item.supplier?.email}</small>
+                   
                   </td>
                   <td>{item.weightKg} kg</td>
                   <td>{item.purity}%</td>
@@ -392,7 +420,7 @@ const AdminInventory = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${item.askingPrice?.toLocaleString()}
+                      {formatNaira(item.askingPrice)}
                     </div>
                     <small>per kg</small>
                   </td>
@@ -423,7 +451,14 @@ const AdminInventory = () => {
                               Approve
                             </Dropdown.Item>
                             <Dropdown.Item
-                              onClick={() => handleReject(item._id)}
+                              onClick={() => {
+                                setSelectedItem(item);
+                                const reason = prompt("Enter rejection reason:");
+                                if (reason) {
+                                  setRejectReason(reason);
+                                  handleReject(item._id);
+                                }
+                              }}
                             >
                               <FiXCircle className="me-2 text-danger" /> Reject
                             </Dropdown.Item>
@@ -507,7 +542,7 @@ const AdminInventory = () => {
                   <div className="p-3 bg-light rounded">
                     <small className="text-muted">Price per kg</small>
                     <h4 className="fw-bold text-success mb-0">
-                      ${selectedItem.askingPrice?.toLocaleString()}
+                      {formatNaira(selectedItem.askingPrice)}
                     </h4>
                   </div>
                 </Col>
@@ -515,10 +550,7 @@ const AdminInventory = () => {
                   <div className="p-3 bg-light rounded">
                     <small className="text-muted">Total Value</small>
                     <h4 className="fw-bold text-primary mb-0">
-                      $
-                      {(
-                        selectedItem.weightKg * selectedItem.askingPrice
-                      )?.toLocaleString()}
+                      {formatNaira(selectedItem.weightKg * selectedItem.askingPrice)}
                     </h4>
                   </div>
                 </Col>
@@ -566,6 +598,7 @@ const AdminInventory = () => {
               <Button
                 variant="danger"
                 onClick={() => {
+                  setShowDetailModal(false);
                   const reason = prompt("Enter rejection reason:");
                   if (reason) {
                     setRejectReason(reason);
@@ -578,7 +611,10 @@ const AdminInventory = () => {
               </Button>
               <Button
                 variant="success"
-                onClick={() => handleApprove(selectedItem._id)}
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setShowApproveModal(true);
+                }}
               >
                 <FiCheckCircle className="me-2" />
                 Approve

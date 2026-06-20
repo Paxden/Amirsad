@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/immutability */
 /* eslint-disable react-hooks/exhaustive-deps */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -13,7 +13,6 @@ import {
   Modal,
   InputGroup,
   Alert,
-  
 } from "react-bootstrap";
 import {
   FiCalendar,
@@ -26,13 +25,10 @@ import {
   FiMapPin,
   FiUser,
   FiMail,
- 
   FiVideo,
   FiEdit2,
- 
 } from "react-icons/fi";
 import PageHeader from "../../components/PageHeader";
-import { appointmentApi } from "../../api/appointmentApi";
 import toast from "react-hot-toast";
 
 const SupplierAppointments = () => {
@@ -65,10 +61,23 @@ const SupplierAppointments = () => {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const response = await appointmentApi.getMyAppointments();
-      if (response.success) {
-        setAppointments(response.appointments || []);
-        calculateStats(response.appointments || []);
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.search) queryParams.append("search", filters.search);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/my?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setAppointments(data.appointments || []);
+        calculateStats(data.appointments || []);
       }
     } catch (error) {
       console.error("Failed to fetch appointments:", error);
@@ -78,16 +87,16 @@ const SupplierAppointments = () => {
     }
   };
 
-  const calculateStats = (appointments) => {
+  const calculateStats = (appointmentsData) => {
     const now = new Date();
     const stats = {
-      total: appointments.length,
-      pending: appointments.filter((a) => a.status === "pending").length,
-      confirmed: appointments.filter((a) => a.status === "confirmed").length,
-      completed: appointments.filter((a) => a.status === "completed").length,
-      cancelled: appointments.filter((a) => a.status === "cancelled").length,
-      upcoming: appointments.filter(
-        (a) => new Date(a.scheduledDate) > now && a.status === "confirmed",
+      total: appointmentsData.length,
+      pending: appointmentsData.filter((a) => a.status === "pending").length,
+      confirmed: appointmentsData.filter((a) => a.status === "confirmed").length,
+      completed: appointmentsData.filter((a) => a.status === "completed").length,
+      cancelled: appointmentsData.filter((a) => a.status === "cancelled").length,
+      upcoming: appointmentsData.filter(
+        (a) => new Date(a.scheduledDate) > now && a.status === "confirmed"
       ).length,
     };
     setStats(stats);
@@ -95,14 +104,23 @@ const SupplierAppointments = () => {
 
   const handleConfirmAppointment = async (id) => {
     try {
-      const response = await appointmentApi.confirmAppointment(id);
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${id}/confirm`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Appointment confirmed");
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
-
+      console.error("Confirm error:", error);
       toast.error("Failed to confirm appointment");
     }
   };
@@ -112,29 +130,50 @@ const SupplierAppointments = () => {
     if (!reason) return;
 
     try {
-      const response = await appointmentApi.cancelAppointment(id, reason);
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${id}/cancel`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ reason }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Appointment cancelled");
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
-
+      console.error("Cancel error:", error);
       toast.error("Failed to cancel appointment");
     }
   };
 
   const handleMarkAttendance = async (id, attended) => {
     try {
-      const response = await appointmentApi.markAttendance(id, attended);
-      if (response.success) {
-        toast.success(
-          `Attendance marked as ${attended ? "present" : "absent"}`,
-        );
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${id}/attendance`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ attended }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`Attendance marked as ${attended ? "present" : "absent"}`);
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Attendance error:", error);
       toast.error("Failed to mark attendance");
     }
   };
@@ -146,19 +185,27 @@ const SupplierAppointments = () => {
     }
 
     try {
-      const response = await appointmentApi.rescheduleAppointment(
-        selectedAppointment._id,
-        rescheduleData.newDate,
-        rescheduleData.reason,
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/appointments/${selectedAppointment._id}/reschedule`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(rescheduleData),
+        }
       );
-      if (response.success) {
+      const data = await response.json();
+      if (data.success) {
         toast.success("Reschedule request submitted. Waiting for approval.");
         setShowRescheduleModal(false);
         setRescheduleData({ newDate: "", reason: "" });
         fetchAppointments();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Reschedule error:", error);
       toast.error("Failed to reschedule appointment");
     }
   };
@@ -178,11 +225,7 @@ const SupplierAppointments = () => {
       cancelled: "Cancelled",
       in_progress: "In Progress",
     };
-    return (
-      <Badge bg={variants[status] || "secondary"}>
-        {labels[status] || status}
-      </Badge>
-    );
+    return <Badge bg={variants[status] || "secondary"}>{labels[status] || status}</Badge>;
   };
 
   const getTypeBadge = (type) => {
@@ -225,10 +268,7 @@ const SupplierAppointments = () => {
 
   if (loading) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ minHeight: "400px" }}
-      >
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "400px" }}>
         <Spinner animation="border" variant="warning" />
       </div>
     );
@@ -281,18 +321,14 @@ const SupplierAppointments = () => {
                   type="text"
                   placeholder="Search by title or buyer name..."
                   value={filters.search}
-                  onChange={(e) =>
-                    setFilters({ ...filters, search: e.target.value })
-                  }
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 />
               </InputGroup>
             </Col>
             <Col md={4}>
               <Form.Select
                 value={filters.status}
-                onChange={(e) =>
-                  setFilters({ ...filters, status: e.target.value })
-                }
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
               >
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
@@ -302,11 +338,7 @@ const SupplierAppointments = () => {
               </Form.Select>
             </Col>
             <Col md={2}>
-              <Button
-                variant="outline-secondary"
-                onClick={fetchAppointments}
-                className="w-100"
-              >
+              <Button variant="outline-secondary" onClick={fetchAppointments} className="w-100">
                 <FiRefreshCw className="me-2" />
                 Reset
               </Button>
@@ -325,9 +357,7 @@ const SupplierAppointments = () => {
                 You have {stats.upcoming} upcoming appointment
                 {stats.upcoming !== 1 ? "s" : ""}.
               </strong>
-              <span className="ms-2">
-                Please check your schedule and confirm availability.
-              </span>
+              <span className="ms-2">Please check your schedule and confirm availability.</span>
             </div>
           </div>
         </Alert>
@@ -353,9 +383,7 @@ const SupplierAppointments = () => {
                 <tr key={appointment._id}>
                   <td>
                     <div className="fw-bold">{appointment.title}</div>
-                    <small className="text-muted">
-                      {appointment.appointmentNumber}
-                    </small>
+                    <small className="text-muted">{appointment.appointmentNumber}</small>
                   </td>
                   <td>{getTypeBadge(appointment.type)}</td>
                   <td>
@@ -408,15 +436,12 @@ const SupplierAppointments = () => {
                           variant="link"
                           size="sm"
                           className="p-0 text-success"
-                          onClick={() =>
-                            handleConfirmAppointment(appointment._id)
-                          }
+                          onClick={() => handleConfirmAppointment(appointment._id)}
                         >
                           <FiCheckCircle size={18} />
                         </Button>
                       )}
-                      {(appointment.status === "pending" ||
-                        appointment.status === "confirmed") && (
+                      {(appointment.status === "pending" || appointment.status === "confirmed") && (
                         <>
                           <Button
                             variant="link"
@@ -433,26 +458,23 @@ const SupplierAppointments = () => {
                             variant="link"
                             size="sm"
                             className="p-0 text-danger"
-                            onClick={() =>
-                              handleCancelAppointment(appointment._id)
-                            }
+                            onClick={() => handleCancelAppointment(appointment._id)}
                           >
                             <FiXCircle size={18} />
                           </Button>
                         </>
                       )}
-                      {appointment.status === "confirmed" &&
-                        appointment.meetingLink && (
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="p-0 text-info"
-                            href={appointment.meetingLink}
-                            target="_blank"
-                          >
-                            <FiVideo size={18} />
-                          </Button>
-                        )}
+                      {appointment.status === "confirmed" && appointment.meetingLink && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="p-0 text-info"
+                          href={appointment.meetingLink}
+                          target="_blank"
+                        >
+                          <FiVideo size={18} />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -464,8 +486,7 @@ const SupplierAppointments = () => {
               <FiCalendar size={48} className="text-muted mb-3" />
               <p className="text-muted">No appointments found</p>
               <p className="text-muted small">
-                When buyers schedule appointments with you, they will appear
-                here.
+                When buyers schedule appointments with you, they will appear here.
               </p>
             </div>
           )}
@@ -473,11 +494,7 @@ const SupplierAppointments = () => {
       </Card>
 
       {/* Appointment Detail Modal */}
-      <Modal
-        show={showDetailModal}
-        onHide={() => setShowDetailModal(false)}
-        size="lg"
-      >
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Appointment Details</Modal.Title>
         </Modal.Header>
@@ -497,15 +514,11 @@ const SupplierAppointments = () => {
                   </Col>
                   <Col md={6}>
                     <strong>Created:</strong>
-                    <p>
-                      {new Date(selectedAppointment.createdAt).toLocaleString()}
-                    </p>
+                    <p>{new Date(selectedAppointment.createdAt).toLocaleString()}</p>
                   </Col>
                   <Col md={6}>
                     <strong>Last Updated:</strong>
-                    <p>
-                      {new Date(selectedAppointment.updatedAt).toLocaleString()}
-                    </p>
+                    <p>{new Date(selectedAppointment.updatedAt).toLocaleString()}</p>
                   </Col>
                 </Row>
               </div>
@@ -528,18 +541,11 @@ const SupplierAppointments = () => {
                   </Col>
                   <Col md={6}>
                     <strong>Date:</strong>
-                    <p>
-                      {new Date(
-                        selectedAppointment.scheduledDate,
-                      ).toLocaleDateString()}
-                    </p>
+                    <p>{new Date(selectedAppointment.scheduledDate).toLocaleDateString()}</p>
                   </Col>
                   <Col md={6}>
                     <strong>Time:</strong>
-                    <p>
-                      {selectedAppointment.startTime} -{" "}
-                      {selectedAppointment.endTime}
-                    </p>
+                    <p>{selectedAppointment.startTime} - {selectedAppointment.endTime}</p>
                   </Col>
                 </Row>
               </div>
@@ -562,9 +568,7 @@ const SupplierAppointments = () => {
                   </Col>
                   <Col md={6}>
                     <strong>Company:</strong>
-                    <p>
-                      {selectedAppointment.buyer?.profile?.companyName || "N/A"}
-                    </p>
+                    <p>{selectedAppointment.buyer?.profile?.companyName || "N/A"}</p>
                   </Col>
                 </Row>
               </div>
@@ -578,11 +582,7 @@ const SupplierAppointments = () => {
                     <strong>Virtual Meeting</strong>
                     {selectedAppointment.meetingLink && (
                       <div className="mt-2">
-                        <a
-                          href={selectedAppointment.meetingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
+                        <a href={selectedAppointment.meetingLink} target="_blank" rel="noopener noreferrer">
                           {selectedAppointment.meetingLink}
                         </a>
                       </div>
@@ -612,9 +612,7 @@ const SupplierAppointments = () => {
                     <Button
                       variant="success"
                       size="sm"
-                      onClick={() =>
-                        handleMarkAttendance(selectedAppointment._id, true)
-                      }
+                      onClick={() => handleMarkAttendance(selectedAppointment._id, true)}
                     >
                       <FiCheckCircle className="me-1" />
                       Mark Present
@@ -622,9 +620,7 @@ const SupplierAppointments = () => {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() =>
-                        handleMarkAttendance(selectedAppointment._id, false)
-                      }
+                      onClick={() => handleMarkAttendance(selectedAppointment._id, false)}
                     >
                       <FiXCircle className="me-1" />
                       Mark Absent
@@ -634,42 +630,29 @@ const SupplierAppointments = () => {
               )}
 
               {/* Cancellation Info */}
-              {selectedAppointment.status === "cancelled" &&
-                selectedAppointment.cancellationReason && (
-                  <Alert variant="danger" className="mt-3">
-                    <strong>Cancellation Reason:</strong>
-                    <p className="mb-0">
-                      {selectedAppointment.cancellationReason}
-                    </p>
-                  </Alert>
-                )}
+              {selectedAppointment.status === "cancelled" && selectedAppointment.cancellationReason && (
+                <Alert variant="danger" className="mt-3">
+                  <strong>Cancellation Reason:</strong>
+                  <p className="mb-0">{selectedAppointment.cancellationReason}</p>
+                </Alert>
+              )}
             </div>
           )}
         </Modal.Body>
         <Modal.Footer>
           {selectedAppointment?.status === "pending" && (
-            <Button
-              variant="success"
-              onClick={() => handleConfirmAppointment(selectedAppointment._id)}
-            >
+            <Button variant="success" onClick={() => handleConfirmAppointment(selectedAppointment._id)}>
               <FiCheckCircle className="me-2" />
               Confirm Appointment
             </Button>
           )}
-          {(selectedAppointment?.status === "pending" ||
-            selectedAppointment?.status === "confirmed") && (
+          {(selectedAppointment?.status === "pending" || selectedAppointment?.status === "confirmed") && (
             <>
-              <Button
-                variant="warning"
-                onClick={() => setShowRescheduleModal(true)}
-              >
+              <Button variant="warning" onClick={() => setShowRescheduleModal(true)}>
                 <FiEdit2 className="me-2" />
                 Request Reschedule
               </Button>
-              <Button
-                variant="danger"
-                onClick={() => handleCancelAppointment(selectedAppointment._id)}
-              >
+              <Button variant="danger" onClick={() => handleCancelAppointment(selectedAppointment._id)}>
                 <FiXCircle className="me-2" />
                 Cancel Appointment
               </Button>
@@ -682,10 +665,7 @@ const SupplierAppointments = () => {
       </Modal>
 
       {/* Reschedule Modal */}
-      <Modal
-        show={showRescheduleModal}
-        onHide={() => setShowRescheduleModal(false)}
-      >
+      <Modal show={showRescheduleModal} onHide={() => setShowRescheduleModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Request Reschedule</Modal.Title>
         </Modal.Header>
@@ -696,12 +676,7 @@ const SupplierAppointments = () => {
               <Form.Control
                 type="datetime-local"
                 value={rescheduleData.newDate}
-                onChange={(e) =>
-                  setRescheduleData({
-                    ...rescheduleData,
-                    newDate: e.target.value,
-                  })
-                }
+                onChange={(e) => setRescheduleData({ ...rescheduleData, newDate: e.target.value })}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -711,21 +686,13 @@ const SupplierAppointments = () => {
                 rows={3}
                 placeholder="Please provide a reason for rescheduling..."
                 value={rescheduleData.reason}
-                onChange={(e) =>
-                  setRescheduleData({
-                    ...rescheduleData,
-                    reason: e.target.value,
-                  })
-                }
+                onChange={(e) => setRescheduleData({ ...rescheduleData, reason: e.target.value })}
               />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => setShowRescheduleModal(false)}
-          >
+          <Button variant="secondary" onClick={() => setShowRescheduleModal(false)}>
             Cancel
           </Button>
           <Button variant="warning" onClick={handleReschedule}>

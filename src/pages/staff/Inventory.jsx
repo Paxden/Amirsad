@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -16,7 +16,6 @@ import {
   Alert,
   Tabs,
   Tab,
-  
 } from "react-bootstrap";
 import {
   FiPackage,
@@ -28,17 +27,37 @@ import {
   FiEye,
   FiEdit2,
   FiRefreshCw,
-  FiDollarSign,
   FiMapPin,
   FiUser,
   FiCalendar,
   FiClock,
   FiTrendingUp,
   FiAward,
-  
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const StaffInventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -65,8 +84,31 @@ const StaffInventory = () => {
 
   useEffect(() => {
     fetchInventory();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats from inventory data
+  const calculateStats = (inventoryData) => {
+    if (inventoryData && inventoryData.length > 0) {
+      const totalValue = inventoryData.reduce((sum, i) => sum + (i.weightKg * i.askingPrice || 0), 0);
+      const totalWeight = inventoryData.reduce((sum, i) => sum + (i.weightKg || 0), 0);
+      
+      setStats({
+        pending: inventoryData.filter(i => i.status === "pending_approval").length,
+        approved: inventoryData.filter(i => i.status === "available" || i.status === "approved").length,
+        rejected: inventoryData.filter(i => i.status === "rejected").length,
+        totalValue: totalValue,
+        totalWeight: totalWeight,
+      });
+    } else {
+      setStats({
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        totalValue: 0,
+        totalWeight: 0,
+      });
+    }
+  };
 
   const fetchInventory = async () => {
     try {
@@ -89,35 +131,15 @@ const StaffInventory = () => {
       const data = await response.json();
       if (data.success) {
         setInventory(data.inventory || []);
+        calculateStats(data.inventory || []);
       }
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
       toast.error("Failed to load inventory");
+      setInventory([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/inventory/stats`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setStats({
-          pending: data.pendingCount || 0,
-          approved: data.approvedCount || 0,
-          rejected: data.rejectedCount || 0,
-          totalValue: data.totalValue || 0,
-          totalWeight: data.totalWeight || 0,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -141,10 +163,9 @@ const StaffInventory = () => {
         setShowApproveModal(false);
         setApproveNotes("");
         fetchInventory();
-        fetchStats();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Approve error:", error);
       toast.error("Failed to approve inventory");
     }
   };
@@ -174,10 +195,9 @@ const StaffInventory = () => {
         setShowRejectModal(false);
         setRejectReason("");
         fetchInventory();
-        fetchStats();
       }
     } catch (error) {
-        console.log(error)
+      console.error("Reject error:", error);
       toast.error("Failed to reject inventory");
     }
   };
@@ -225,8 +245,8 @@ const StaffInventory = () => {
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiDollarSign,
+      value: formatNairaMillions(stats.totalValue || 0),
+      icon: FaHashtag,
       color: "primary",
     },
     {
@@ -382,9 +402,9 @@ const StaffInventory = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${item.askingPrice?.toLocaleString()}/kg
+                      {formatNaira(item.askingPrice)}/kg
                     </div>
-                    <small>Total: ${(item.weightKg * item.askingPrice)?.toLocaleString()}</small>
+                    <small>Total: {formatNaira(item.weightKg * item.askingPrice)}</small>
                   </td>
                   <td>{getStatusBadge(item.status)}</td>
                   <td>
@@ -529,7 +549,7 @@ const StaffInventory = () => {
                     <div className="p-2">
                       <small className="text-muted">Price per kg</small>
                       <h4 className="fw-bold text-success mb-0">
-                        ${selectedItem.askingPrice?.toLocaleString()}
+                        {formatNaira(selectedItem.askingPrice)}
                       </h4>
                     </div>
                   </Col>
@@ -537,7 +557,7 @@ const StaffInventory = () => {
                     <div className="p-2">
                       <small className="text-muted">Total Value</small>
                       <h4 className="fw-bold text-primary mb-0">
-                        ${(selectedItem.weightKg * selectedItem.askingPrice)?.toLocaleString()}
+                        {formatNaira(selectedItem.weightKg * selectedItem.askingPrice)}
                       </h4>
                     </div>
                   </Col>

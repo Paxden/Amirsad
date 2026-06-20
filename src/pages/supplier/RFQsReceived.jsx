@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -12,29 +13,43 @@ import {
   Modal,
   InputGroup,
   Alert,
- 
 } from "react-bootstrap";
 import {
   FiFileText,
   FiSearch,
   FiEye,
   FiCheckCircle,
- 
   FiRefreshCw,
-  FiDollarSign,
   FiUser,
   FiCalendar,
- 
-  FiSend,
   FiClock,
- 
-  FiMail,
-  
+  FiSend,
   FiMapPin,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
-import { rfqApi } from "../../api/rfqApi";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const SupplierRFQsReceived = () => {
   const [rfqs, setRfqs] = useState([]);
@@ -60,32 +75,59 @@ const SupplierRFQsReceived = () => {
 
   useEffect(() => {
     fetchRFQs();
-    fetchStats();
   }, [filters]);
+
+  // Calculate stats from RFQs data
+  const calculateStats = (rfqsData) => {
+    if (rfqsData && rfqsData.length > 0) {
+      const statsData = {
+        total: rfqsData.length,
+        pending: rfqsData.filter(r => r.status === "pending" || r.status === "under_review").length,
+        quoted: rfqsData.filter(r => r.status === "quoted").length,
+        accepted: rfqsData.filter(r => r.status === "accepted").length,
+        totalValue: rfqsData.reduce((sum, r) => sum + (r.offeredTotalPrice || 0), 0),
+      };
+      setStats(statsData);
+    } else {
+      setStats({
+        total: 0,
+        pending: 0,
+        quoted: 0,
+        accepted: 0,
+        totalValue: 0,
+      });
+    }
+  };
 
   const fetchRFQs = async () => {
     try {
       setLoading(true);
-      const response = await rfqApi.getSupplierRFQs();
-      if (response.success) {
-        setRfqs(response.rfqs || []);
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.search) queryParams.append("search", filters.search);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/rfqs/supplier-rfqs?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setRfqs(data.rfqs || []);
+        // Calculate stats from the fetched data
+        calculateStats(data.rfqs || []);
       }
     } catch (error) {
       console.error("Failed to fetch RFQs:", error);
       toast.error("Failed to load RFQs");
+      setRfqs([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const response = await rfqApi.getStats();
-      if (response.success) {
-        setStats(response.stats || {});
-      }
-    } catch (error) {
-      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -96,19 +138,31 @@ const SupplierRFQsReceived = () => {
     }
 
     try {
-      const response = await rfqApi.respondToRFQ(selectedRFQ._id, {
-        quotePricePerKg: parseFloat(responseData.quotePricePerKg),
-        staffResponse: responseData.message,
-      });
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/rfqs/${selectedRFQ._id}/respond/supplier`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            quotePricePerKg: parseFloat(responseData.quotePricePerKg),
+            message: responseData.message,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Quote sent to buyer successfully");
         setShowResponseModal(false);
         setResponseData({ quotePricePerKg: "", message: "" });
         fetchRFQs();
-        fetchStats();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send response");
+      console.error("Response error:", error);
+      toast.error("Failed to send response");
     }
   };
 
@@ -131,28 +185,16 @@ const SupplierRFQsReceived = () => {
       rejected: "Rejected",
       expired: "Expired",
     };
-    return (
-      <Badge bg={variants[status] || "secondary"}>
-        {labels[status] || status}
-      </Badge>
-    );
+    return <Badge bg={variants[status] || "secondary"}>{labels[status] || status}</Badge>;
   };
 
   const getPriorityBadge = (rfq) => {
     const totalValue = rfq.offeredTotalPrice || 0;
     if (totalValue > 100000) {
-      return (
-        <Badge bg="danger" className="ms-2">
-          High Value
-        </Badge>
-      );
+      return <Badge bg="danger" className="ms-2">High Value</Badge>;
     }
     if (totalValue > 50000) {
-      return (
-        <Badge bg="warning" className="ms-2">
-          Medium Value
-        </Badge>
-      );
+      return <Badge bg="warning" className="ms-2">Medium Value</Badge>;
     }
     return null;
   };
@@ -160,36 +202,33 @@ const SupplierRFQsReceived = () => {
   const statCards = [
     {
       title: "Total RFQs",
-      value: stats.totalRFQs || 0,
+      value: stats.total || 0,
       icon: FiFileText,
       color: "primary",
     },
     {
       title: "Pending Response",
-      value: stats.pendingRFQs || 0,
+      value: stats.pending || 0,
       icon: FiClock,
       color: "warning",
     },
     {
       title: "Accepted",
-      value: stats.acceptedRFQs || 0,
+      value: stats.accepted || 0,
       icon: FiCheckCircle,
       color: "success",
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
-      icon: FiDollarSign,
+      value: formatNairaMillions(stats.totalValue || 0),
+      icon: FaHashtag,
       color: "info",
     },
   ];
 
   if (loading) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ minHeight: "400px" }}
-      >
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "400px" }}>
         <Spinner animation="border" variant="warning" />
       </div>
     );
@@ -208,7 +247,7 @@ const SupplierRFQsReceived = () => {
         }
       />
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Calculated from RFQs data */}
       <Row className="g-4 mb-4">
         {statCards.map((stat, index) => (
           <Col md={6} lg={3} key={index}>
@@ -242,18 +281,14 @@ const SupplierRFQsReceived = () => {
                   type="text"
                   placeholder="Search by RFQ number or buyer name..."
                   value={filters.search}
-                  onChange={(e) =>
-                    setFilters({ ...filters, search: e.target.value })
-                  }
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 />
               </InputGroup>
             </Col>
             <Col md={3}>
               <Form.Select
                 value={filters.status}
-                onChange={(e) =>
-                  setFilters({ ...filters, status: e.target.value })
-                }
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
               >
                 <option value="">All Status</option>
                 <option value="pending">Pending Response</option>
@@ -263,11 +298,7 @@ const SupplierRFQsReceived = () => {
               </Form.Select>
             </Col>
             <Col md={2}>
-              <Button
-                variant="outline-secondary"
-                onClick={fetchRFQs}
-                className="w-100"
-              >
+              <Button variant="outline-secondary" onClick={fetchRFQs} className="w-100">
                 <FiRefreshCw className="me-2" />
                 Reset
               </Button>
@@ -303,16 +334,11 @@ const SupplierRFQsReceived = () => {
                       <FiUser className="me-1" size={12} />
                       {rfq.buyer?.fullName || "N/A"}
                     </div>
-                    <small className="text-muted">
-                      <FiMail className="me-1" size={12} />
-                      {rfq.buyer?.email}
-                    </small>
+                    
                   </td>
                   <td>
                     <div className="fw-bold">{rfq.requestedWeightKg} kg</div>
-                    <small className="text-muted">
-                      {rfq.inventory?.purity}% purity
-                    </small>
+                    <small className="text-muted">{rfq.inventory?.purity}% purity</small>
                     {rfq.deliveryTerms && (
                       <div className="small text-muted">
                         <FiMapPin className="me-1" size={12} />
@@ -322,14 +348,12 @@ const SupplierRFQsReceived = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-primary">
-                      ${rfq.offeredPricePerKg?.toLocaleString()}/kg
+                      {formatNaira(rfq.offeredPricePerKg)}/kg
                     </div>
-                    <small>
-                      Total: ${(rfq.offeredTotalPrice || 0).toLocaleString()}
-                    </small>
+                    <small>Total: {formatNaira(rfq.offeredTotalPrice || 0)}</small>
                     {rfq.quotePricePerKg && (
                       <div className="small text-success mt-1">
-                        Your quote: ${rfq.quotePricePerKg}/kg
+                        Your quote: {formatNaira(rfq.quotePricePerKg)}/kg
                       </div>
                     )}
                   </td>
@@ -356,8 +380,7 @@ const SupplierRFQsReceived = () => {
                       >
                         <FiEye size={18} />
                       </Button>
-                      {(rfq.status === "pending" ||
-                        rfq.status === "under_review") && (
+                      {(rfq.status === "pending" || rfq.status === "under_review") && (
                         <Button
                           variant="link"
                           size="sm"
@@ -393,18 +416,13 @@ const SupplierRFQsReceived = () => {
       </Card>
 
       {/* RFQ Detail Modal */}
-      <Modal
-        show={showDetailModal}
-        onHide={() => setShowDetailModal(false)}
-        size="lg"
-      >
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>RFQ Details - {selectedRFQ?.rfqNumber}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedRFQ && (
             <div>
-              {/* Header */}
               <div className="bg-light p-3 rounded mb-4">
                 <Row>
                   <Col md={4}>
@@ -413,20 +431,15 @@ const SupplierRFQsReceived = () => {
                   </Col>
                   <Col md={4}>
                     <strong>Received:</strong>
-                    <div>
-                      {new Date(selectedRFQ.createdAt).toLocaleString()}
-                    </div>
+                    <div>{new Date(selectedRFQ.createdAt).toLocaleString()}</div>
                   </Col>
                   <Col md={4}>
                     <strong>Valid Until:</strong>
-                    <div>
-                      {new Date(selectedRFQ.validUntil).toLocaleDateString()}
-                    </div>
+                    <div>{new Date(selectedRFQ.validUntil).toLocaleDateString()}</div>
                   </Col>
                 </Row>
               </div>
 
-              {/* Buyer Information */}
               <h6 className="fw-bold mb-3">Buyer Information</h6>
               <div className="bg-light p-3 rounded mb-4">
                 <Row>
@@ -449,23 +462,20 @@ const SupplierRFQsReceived = () => {
                 </Row>
               </div>
 
-              {/* Request Details */}
               <h6 className="fw-bold mb-3">Request Details</h6>
               <div className="bg-light p-3 rounded mb-4">
                 <Row>
                   <Col md={4}>
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Weight</small>
-                      <h5 className="fw-bold mb-0">
-                        {selectedRFQ.requestedWeightKg} kg
-                      </h5>
+                      <h5 className="fw-bold mb-0">{selectedRFQ.requestedWeightKg} kg</h5>
                     </div>
                   </Col>
                   <Col md={4}>
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Offer Price</small>
                       <h5 className="fw-bold text-primary mb-0">
-                        ${selectedRFQ.offeredPricePerKg?.toLocaleString()}/kg
+                        {formatNaira(selectedRFQ.offeredPricePerKg)}/kg
                       </h5>
                     </div>
                   </Col>
@@ -473,37 +483,13 @@ const SupplierRFQsReceived = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Total Value</small>
                       <h5 className="fw-bold text-success mb-0">
-                        ${(selectedRFQ.offeredTotalPrice || 0).toLocaleString()}
+                        {formatNaira(selectedRFQ.offeredTotalPrice || 0)}
                       </h5>
                     </div>
                   </Col>
                 </Row>
               </div>
 
-              {/* Your Inventory */}
-              <h6 className="fw-bold mb-3">Your Inventory</h6>
-              <div className="bg-light p-3 rounded mb-4">
-                <Row>
-                  <Col md={6}>
-                    <strong>Inventory #:</strong>
-                    <p>{selectedRFQ.inventory?.inventoryNumber}</p>
-                  </Col>
-                  <Col md={6}>
-                    <strong>Available Weight:</strong>
-                    <p>{selectedRFQ.inventory?.availableWeightKg} kg</p>
-                  </Col>
-                  <Col md={6}>
-                    <strong>Purity:</strong>
-                    <p>{selectedRFQ.inventory?.purity}%</p>
-                  </Col>
-                  <Col md={6}>
-                    <strong>Location:</strong>
-                    <p>{selectedRFQ.inventory?.location}</p>
-                  </Col>
-                </Row>
-              </div>
-
-              {/* Message */}
               {selectedRFQ.message && (
                 <Alert variant="info">
                   <strong>Buyer Message:</strong>
@@ -511,53 +497,26 @@ const SupplierRFQsReceived = () => {
                 </Alert>
               )}
 
-              {/* Your Response */}
               {selectedRFQ.staffResponse && (
                 <Alert variant="success">
                   <strong>Your Response:</strong>
                   <p className="mb-0 mt-1">{selectedRFQ.staffResponse}</p>
                   {selectedRFQ.quotePricePerKg && (
                     <small className="text-muted">
-                      Quoted Price: ${selectedRFQ.quotePricePerKg}/kg
+                      Quoted Price: {formatNaira(selectedRFQ.quotePricePerKg)}/kg
                     </small>
                   )}
                 </Alert>
               )}
-
-              {/* Negotiation History */}
-              {selectedRFQ.negotiationHistory &&
-                selectedRFQ.negotiationHistory.length > 0 && (
-                  <>
-                    <h6 className="fw-bold mb-3">Negotiation History</h6>
-                    <div className="bg-light p-3 rounded">
-                      {selectedRFQ.negotiationHistory.map((item, index) => (
-                        <div key={index} className="mb-2 pb-2 border-bottom">
-                          <div className="d-flex justify-content-between">
-                            <strong>Round {item.round}</strong>
-                            <small>
-                              {new Date(item.createdAt).toLocaleString()}
-                            </small>
-                          </div>
-                          <div>Price: ${item.pricePerKg}/kg</div>
-                          <div className="small text-muted">{item.message}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
             </div>
           )}
         </Modal.Body>
         <Modal.Footer>
-          {(selectedRFQ?.status === "pending" ||
-            selectedRFQ?.status === "under_review") && (
-            <Button
-              variant="success"
-              onClick={() => {
-                setShowDetailModal(false);
-                setShowResponseModal(true);
-              }}
-            >
+          {(selectedRFQ?.status === "pending" || selectedRFQ?.status === "under_review") && (
+            <Button variant="success" onClick={() => {
+              setShowDetailModal(false);
+              setShowResponseModal(true);
+            }}>
               <FiSend className="me-2" />
               Send Quote
             </Button>
@@ -569,10 +528,7 @@ const SupplierRFQsReceived = () => {
       </Modal>
 
       {/* Response Modal */}
-      <Modal
-        show={showResponseModal}
-        onHide={() => setShowResponseModal(false)}
-      >
+      <Modal show={showResponseModal} onHide={() => setShowResponseModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Send Quote to Buyer</Modal.Title>
         </Modal.Header>
@@ -582,38 +538,27 @@ const SupplierRFQsReceived = () => {
               <Alert variant="info">
                 <strong>RFQ: {selectedRFQ.rfqNumber}</strong>
                 <p className="mb-0 mt-2">
-                  Buyer: {selectedRFQ.buyer?.fullName}
-                  <br />
-                  Requested: {selectedRFQ.requestedWeightKg} kg @ $
-                  {selectedRFQ.offeredPricePerKg}/kg
+                  Buyer: {selectedRFQ.buyer?.fullName}<br />
+                  Requested: {selectedRFQ.requestedWeightKg} kg @ {formatNaira(selectedRFQ.offeredPricePerKg)}/kg
                 </p>
               </Alert>
 
               <Form.Group className="mb-3">
                 <Form.Label>Your Quote Price (per kg) *</Form.Label>
                 <InputGroup>
-                  <InputGroup.Text>$</InputGroup.Text>
+                  <InputGroup.Text>₦</InputGroup.Text>
                   <Form.Control
                     type="number"
                     step="100"
                     placeholder="Enter your quote price"
                     value={responseData.quotePricePerKg}
-                    onChange={(e) =>
-                      setResponseData({
-                        ...responseData,
-                        quotePricePerKg: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setResponseData({ ...responseData, quotePricePerKg: e.target.value })}
                     required
                   />
                 </InputGroup>
                 {responseData.quotePricePerKg && (
                   <Form.Text className="text-muted">
-                    Total Quote: $
-                    {(
-                      responseData.quotePricePerKg *
-                      selectedRFQ.requestedWeightKg
-                    ).toLocaleString()}
+                    Total Quote: {formatNaira(responseData.quotePricePerKg * selectedRFQ.requestedWeightKg)}
                   </Form.Text>
                 )}
               </Form.Group>
@@ -625,12 +570,7 @@ const SupplierRFQsReceived = () => {
                   rows={3}
                   placeholder="Enter your response to the buyer..."
                   value={responseData.message}
-                  onChange={(e) =>
-                    setResponseData({
-                      ...responseData,
-                      message: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setResponseData({ ...responseData, message: e.target.value })}
                   required
                 />
               </Form.Group>
@@ -638,10 +578,7 @@ const SupplierRFQsReceived = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => setShowResponseModal(false)}
-          >
+          <Button variant="secondary" onClick={() => setShowResponseModal(false)}>
             Cancel
           </Button>
           <Button variant="success" onClick={handleRespond}>

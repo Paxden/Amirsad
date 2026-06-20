@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/immutability */
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -16,11 +16,9 @@ import {
   ProgressBar,
 } from "react-bootstrap";
 import {
-  FiDollarSign,
   FiSearch,
   FiEye,
   FiCheckCircle,
-  
   FiRefreshCw,
   FiPackage,
   FiUser,
@@ -28,9 +26,30 @@ import {
   FiTrendingUp,
   FiStar,
 } from "react-icons/fi";
+import { FaHashtag } from "react-icons/fa";
 import PageHeader from "../../components/PageHeader";
-import { dealsApi } from "../../api/dealsApi";
 import toast from "react-hot-toast";
+
+// Helper function to format currency in Naira
+const formatNaira = (amount) => {
+  if (!amount) return "₦0";
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// Helper function to format currency in Naira with millions
+const formatNairaMillions = (amount) => {
+  if (!amount) return "₦0";
+  const millions = amount / 1000000;
+  if (millions >= 1) {
+    return `₦${millions.toFixed(2)}M`;
+  }
+  return formatNaira(amount);
+};
 
 const SupplierDeals = () => {
   const [deals, setDeals] = useState([]);
@@ -62,20 +81,35 @@ const SupplierDeals = () => {
   const fetchDeals = async () => {
     try {
       setLoading(true);
-      const response = await dealsApi.getMyDeals();
-      if (response.success) {
-        setDeals(response.deals || []);
-        calculateStats(response.deals || []);
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams();
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.search) queryParams.append("search", filters.search);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/deals/my?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setDeals(data.deals || []);
+        calculateStats(data.deals || []);
       }
     } catch (error) {
       console.error("Failed to fetch deals:", error);
       toast.error("Failed to load deals");
+      setDeals([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (deals) => {
+  const calculateStats = (dealsData) => {
     const activeStatuses = [
       "open",
       "inspection_scheduled",
@@ -85,12 +119,12 @@ const SupplierDeals = () => {
       "delivery_scheduled",
     ];
     const stats = {
-      total: deals.length,
-      active: deals.filter((d) => activeStatuses.includes(d.status)).length,
-      completed: deals.filter((d) => d.status === "closed").length,
-      cancelled: deals.filter((d) => d.status === "cancelled").length,
-      totalValue: deals.reduce((sum, d) => sum + (d.totalAmount || 0), 0),
-      totalWeight: deals.reduce((sum, d) => sum + (d.quantityKg || 0), 0),
+      total: dealsData.length,
+      active: dealsData.filter((d) => activeStatuses.includes(d.status)).length,
+      completed: dealsData.filter((d) => d.status === "closed").length,
+      cancelled: dealsData.filter((d) => d.status === "cancelled").length,
+      totalValue: dealsData.reduce((sum, d) => sum + (d.totalAmount || 0), 0),
+      totalWeight: dealsData.reduce((sum, d) => sum + (d.quantityKg || 0), 0),
     };
     setStats(stats);
   };
@@ -102,18 +136,30 @@ const SupplierDeals = () => {
     }
 
     try {
-      const response = await dealsApi.rateDeal(selectedDeal._id, {
-        buyerRating: ratingData.rating,
-        buyerFeedback: ratingData.feedback,
-      });
-      if (response.success) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/deals/${selectedDeal._id}/rate`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            buyerRating: ratingData.rating,
+            buyerFeedback: ratingData.feedback,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
         toast.success("Thank you for your feedback!");
         setShowRatingModal(false);
         setRatingData({ rating: 5, feedback: "" });
         fetchDeals();
       }
     } catch (error) {
-        console.error(error)
+      console.error("Rating error:", error);
       toast.error("Failed to submit rating");
     }
   };
@@ -180,7 +226,7 @@ const SupplierDeals = () => {
     {
       title: "Total Deals",
       value: stats.total,
-      icon: FiDollarSign,
+      icon: FaHashtag,
       color: "primary",
     },
     {
@@ -197,7 +243,7 @@ const SupplierDeals = () => {
     },
     {
       title: "Total Value",
-      value: `$${((stats.totalValue || 0) / 1000000).toFixed(2)}M`,
+      value: formatNairaMillions(stats.totalValue || 0),
       icon: FiPackage,
       color: "info",
     },
@@ -335,7 +381,7 @@ const SupplierDeals = () => {
                   </td>
                   <td>
                     <div className="fw-bold text-success">
-                      ${deal.totalAmount?.toLocaleString()}
+                      {formatNaira(deal.totalAmount)}
                     </div>
                     <small>{deal.currency}</small>
                   </td>
@@ -393,7 +439,7 @@ const SupplierDeals = () => {
           </Table>
           {deals.length === 0 && (
             <div className="text-center py-5">
-              <FiDollarSign size={48} className="text-muted mb-3" />
+              <FaHashtag size={48} className="text-muted mb-3" />
               <p className="text-muted">No deals found</p>
               <p className="text-muted small">
                 When you accept RFQs, they will appear here as deals.
@@ -476,7 +522,7 @@ const SupplierDeals = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Price per kg</small>
                       <h5 className="fw-bold text-primary mb-0">
-                        ${selectedDeal.agreedPricePerKg?.toLocaleString()}
+                        {formatNaira(selectedDeal.agreedPricePerKg)}
                       </h5>
                     </div>
                   </Col>
@@ -484,7 +530,7 @@ const SupplierDeals = () => {
                     <div className="text-center p-2 border rounded">
                       <small className="text-muted">Total Amount</small>
                       <h5 className="fw-bold text-success mb-0">
-                        ${selectedDeal.totalAmount?.toLocaleString()}
+                        {formatNaira(selectedDeal.totalAmount)}
                       </h5>
                     </div>
                   </Col>
@@ -512,9 +558,7 @@ const SupplierDeals = () => {
                       </Col>
                       <Col md={4}>
                         <strong>Amount Paid:</strong>
-                        <p>
-                          ${selectedDeal.payment.amount?.toLocaleString() || 0}
-                        </p>
+                        <p>{formatNaira(selectedDeal.payment.amount || 0)}</p>
                       </Col>
                       {selectedDeal.payment.paidAt && (
                         <Col md={4}>
