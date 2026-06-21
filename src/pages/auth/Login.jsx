@@ -1,6 +1,6 @@
-import  { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Form, Button, Container, Row, Col, Card } from "react-bootstrap";
+import { Form, Button, Container, Row, Col, Card, Image } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import Alert from "../../components/Alert";
 import { FiMail, FiLock, FiLogIn } from "react-icons/fi";
@@ -33,7 +33,9 @@ const Login = () => {
   return (
     <div
       className="min-vh-100 d-flex align-items-center"
-     
+      style={{ 
+        background: 'linear-gradient(135deg, # 0%, # 100%)'
+      }}
     >
       <Container>
         <Row className="justify-content-center">
@@ -41,14 +43,27 @@ const Login = () => {
             <Card className="shadow-lg border-0 fade-in">
               <Card.Body className="p-5">
                 <div className="text-center mb-4">
-                  <h2
+                  {/* Logo */}
+                  <Image 
+                    src="/AmirsadLogoAuth.png" 
+                    alt="AMIRSAD Gold" 
+                    className=""
+                    style={{ 
+                      width: '150px', 
+                      height: '150px', 
+                      objectFit: 'contain',
+                      borderRadius: '12px'
+                    }}
+                    fluid
+                  />
+                  <h3
                     className="fw-bold"
                     style={{ color: "var(--primary-color)" }}
                   >
-                    AMIRSAD Gold
-                  </h2>
+                   Welcome Back!
+                  </h3>
                   <p className="text-muted">
-                    Welcome back! Please login to your account
+                    Please login to your account
                   </p>
                 </div>
 

@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Form, Button, Container, Row, Col, Card } from "react-bootstrap";
+import { Form, Button, Container, Row, Col, Card, Image } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import Alert from "../../components/Alert";
 import { FiUser, FiMail, FiPhone, FiLock, FiUserCheck } from "react-icons/fi";
@@ -52,7 +52,7 @@ const Register = () => {
     const result = await register(registerData);
 
     if (result.success) {
-      setSuccess("Registration successful! Redirecting to dashboard...");
+      setSuccess("Registration successful! Redirecting to login...");
       setTimeout(() => {
         navigate("/login");
       }, 2000);
@@ -68,7 +68,7 @@ const Register = () => {
   return (
     <div
       className="min-vh-100 py-5"
-      
+     
     >
       <Container>
         <Row className="justify-content-center">
@@ -76,6 +76,18 @@ const Register = () => {
             <Card className="shadow-lg border-0 fade-in">
               <Card.Body className="p-5">
                 <div className="text-center mb-4">
+                  {/* Logo */}
+                  <Image 
+                    src="/AmirsadLogoAuth.png" 
+                    alt="AMIRSAD Gold" 
+                    style={{ 
+                      width: '150px', 
+                      height: '150px', 
+                      objectFit: 'contain',
+                      borderRadius: '12px'
+                    }}
+                    fluid
+                  />
                   <h2
                     className="fw-bold"
                     style={{ color: "var(--primary-color)" }}

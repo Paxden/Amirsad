@@ -1,16 +1,24 @@
-// src/pages/auth/ResetPassword.jsx - Premium Glass Version
+// src/pages/auth/ResetPassword.jsx - Premium Glass Version with Logo
 
-import  { useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Form, Button, Container, Row, Col, Card, Alert } from "react-bootstrap";
-import { 
-   
-  FiEye, 
-  FiEyeOff, 
-  FiCheckCircle, 
+import {
+  Form,
+  Button,
+  Container,
+  Row,
+  Col,
+  Card,
+  Alert,
+  Image,
+} from "react-bootstrap";
+import {
+  FiEye,
+  FiEyeOff,
+  FiCheckCircle,
   FiArrowLeft,
   FiShield,
-  FiCheck
+  FiCheck,
 } from "react-icons/fi";
 import { authAPI } from "../../api/auth";
 import { toast } from "react-hot-toast";
@@ -18,7 +26,7 @@ import { toast } from "react-hot-toast";
 const ResetPassword = () => {
   const { token } = useParams();
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     password: "",
     confirmPassword: "",
@@ -55,7 +63,11 @@ const ResetPassword = () => {
     }
 
     const validation = validatePassword(formData.password);
-    if (!validation.minLength || !validation.hasUpperCase || !validation.hasNumber) {
+    if (
+      !validation.minLength ||
+      !validation.hasUpperCase ||
+      !validation.hasNumber
+    ) {
       setError("Password does not meet requirements");
       toast.error("Please meet all password requirements");
       return;
@@ -66,11 +78,11 @@ const ResetPassword = () => {
 
     try {
       const response = await authAPI.resetPassword(token, formData.password);
-      
+
       if (response.success) {
         setSuccess(true);
         toast.success("Password reset successful!");
-        
+
         setTimeout(() => {
           navigate("/login");
         }, 3000);
@@ -79,7 +91,9 @@ const ResetPassword = () => {
         toast.error(response.message || "Failed to reset password");
       }
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Failed to reset password. Please try again.";
+      const errorMsg =
+        error.response?.data?.message ||
+        "Failed to reset password. Please try again.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -91,22 +105,31 @@ const ResetPassword = () => {
 
   if (success) {
     return (
-      <div className="min-vh-100 d-flex align-items-center" style={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      }}>
+      <div
+        className="min-vh-100 d-flex align-items-center"
+        style={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        }}
+      >
         <Container>
           <Row className="justify-content-center">
             <Col md={6} lg={5}>
               <Card className="shadow-lg border-0 text-center fade-in">
                 <Card.Body className="p-5">
                   <div className="mb-4">
-                    <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex p-3" style={{ width: '80px', height: '80px' }}>
+                    <div
+                      className="bg-success bg-opacity-10 rounded-circle d-inline-flex p-3"
+                      style={{ width: "80px", height: "80px" }}
+                    >
                       <FiCheckCircle size={45} className="text-success m-auto" />
                     </div>
                   </div>
-                  <h3 className="fw-bold mb-3">Password Reset Successful!</h3>
+                  <h3 className="fw-bold mb-3">
+                    Password Reset Successful!
+                  </h3>
                   <p className="text-muted mb-4">
-                    Your password has been reset successfully. You will be redirected to login page shortly.
+                    Your password has been reset successfully. You will be
+                    redirected to login page shortly.
                   </p>
                   <Button
                     variant="warning"
@@ -125,30 +148,56 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="min-vh-100 d-flex align-items-center py-5" style={{ 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      position: 'relative'
-    }}>
+    <div
+      className="min-vh-100 d-flex align-items-center py-5"
+     
+    >
       <Container className="position-relative">
         <Row className="justify-content-center">
           <Col md={6} lg={5}>
-            <Card className="border-0 fade-in" style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '20px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-            }}>
+            <Card
+              className="border-0 fade-in"
+              style={{
+                background: "rgba(255, 255, 255, 0.95)",
+                backdropFilter: "blur(10px)",
+                borderRadius: "20px",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              }}
+            >
               <Card.Body className="p-5">
+                {/* Header with Logo */}
                 <div className="text-center mb-4">
-                  <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3" style={{ width: '80px', height: '80px' }}>
+                  <Image
+                    src="/AmirsadLogoAuth.png"
+                    alt="AMIRSAD Gold"
+                    className="mb-3"
+                    style={{
+                      width: "70px",
+                      height: "70px",
+                      objectFit: "contain",
+                      borderRadius: "12px",
+                    }}
+                    fluid
+                  />
+                  <div
+                    className="bg-warning bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3"
+                    style={{ width: "80px", height: "80px" }}
+                  >
                     <FiShield size={40} className="text-warning m-auto" />
                   </div>
                   <h2 className="fw-bold">Create New Password</h2>
-                  <p className="text-muted">Secure your account with a strong password</p>
+                  <p className="text-muted">
+                    Secure your account with a strong password
+                  </p>
                 </div>
 
                 {error && (
-                  <Alert variant="danger" className="fade-in" onClose={() => setError("")} dismissible>
+                  <Alert
+                    variant="danger"
+                    className="fade-in"
+                    onClose={() => setError("")}
+                    dismissible
+                  >
                     {error}
                   </Alert>
                 )}
@@ -165,43 +214,75 @@ const ResetPassword = () => {
                         required
                         className="py-2"
                         placeholder="Enter new password"
+                        style={{ borderRadius: "10px" }}
                       />
                       <Button
                         type="button"
                         variant="link"
                         onClick={() => setShowPassword(!showPassword)}
                         className="position-absolute end-0 top-0 bottom-0"
+                        style={{
+                          color: "var(--text-secondary)",
+                          textDecoration: "none",
+                          zIndex: 2,
+                        }}
                       >
                         {showPassword ? <FiEyeOff /> : <FiEye />}
                       </Button>
                     </div>
-                    
+
                     {/* Password Requirements Checklist */}
                     <div className="mt-2">
                       <div className="d-flex align-items-center gap-2 small mb-1">
-                        {validation.minLength ? 
-                          <FiCheck className="text-success" size={12} /> : 
-                          <div className="bg-secondary rounded-circle" style={{ width: '12px', height: '12px' }}></div>
-                        }
-                        <span className={validation.minLength ? "text-success" : "text-muted"}>
+                        {validation.minLength ? (
+                          <FiCheck className="text-success" size={12} />
+                        ) : (
+                          <div
+                            className="bg-secondary rounded-circle"
+                            style={{ width: "12px", height: "12px" }}
+                          ></div>
+                        )}
+                        <span
+                          className={
+                            validation.minLength ? "text-success" : "text-muted"
+                          }
+                        >
                           At least 6 characters
                         </span>
                       </div>
                       <div className="d-flex align-items-center gap-2 small mb-1">
-                        {validation.hasUpperCase ? 
-                          <FiCheck className="text-success" size={12} /> : 
-                          <div className="bg-secondary rounded-circle" style={{ width: '12px', height: '12px' }}></div>
-                        }
-                        <span className={validation.hasUpperCase ? "text-success" : "text-muted"}>
+                        {validation.hasUpperCase ? (
+                          <FiCheck className="text-success" size={12} />
+                        ) : (
+                          <div
+                            className="bg-secondary rounded-circle"
+                            style={{ width: "12px", height: "12px" }}
+                          ></div>
+                        )}
+                        <span
+                          className={
+                            validation.hasUpperCase
+                              ? "text-success"
+                              : "text-muted"
+                          }
+                        >
                           One uppercase letter
                         </span>
                       </div>
                       <div className="d-flex align-items-center gap-2 small">
-                        {validation.hasNumber ? 
-                          <FiCheck className="text-success" size={12} /> : 
-                          <div className="bg-secondary rounded-circle" style={{ width: '12px', height: '12px' }}></div>
-                        }
-                        <span className={validation.hasNumber ? "text-success" : "text-muted"}>
+                        {validation.hasNumber ? (
+                          <FiCheck className="text-success" size={12} />
+                        ) : (
+                          <div
+                            className="bg-secondary rounded-circle"
+                            style={{ width: "12px", height: "12px" }}
+                          ></div>
+                        )}
+                        <span
+                          className={
+                            validation.hasNumber ? "text-success" : "text-muted"
+                          }
+                        >
                           One number
                         </span>
                       </div>
@@ -209,7 +290,9 @@ const ResetPassword = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-4">
-                    <Form.Label className="fw-semibold">Confirm Password</Form.Label>
+                    <Form.Label className="fw-semibold">
+                      Confirm Password
+                    </Form.Label>
                     <div className="position-relative">
                       <Form.Control
                         type={showConfirmPassword ? "text" : "password"}
@@ -219,22 +302,36 @@ const ResetPassword = () => {
                         required
                         className="py-2"
                         placeholder="Confirm new password"
-                        isInvalid={formData.confirmPassword && formData.password !== formData.confirmPassword}
+                        style={{ borderRadius: "10px" }}
+                        isInvalid={
+                          formData.confirmPassword &&
+                          formData.password !== formData.confirmPassword
+                        }
                       />
                       <Button
                         type="button"
                         variant="link"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
                         className="position-absolute end-0 top-0 bottom-0"
+                        style={{
+                          color: "var(--text-secondary)",
+                          textDecoration: "none",
+                          zIndex: 2,
+                        }}
                       >
                         {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
                       </Button>
                     </div>
-                    {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                      <div className="mt-1">
-                        <small className="text-success">✓ Passwords match</small>
-                      </div>
-                    )}
+                    {formData.confirmPassword &&
+                      formData.password === formData.confirmPassword && (
+                        <div className="mt-1">
+                          <small className="text-success">
+                            ✓ Passwords match
+                          </small>
+                        </div>
+                      )}
                   </Form.Group>
 
                   <Button
@@ -242,6 +339,11 @@ const ResetPassword = () => {
                     variant="warning"
                     className="w-100 py-2 fw-bold"
                     disabled={loading}
+                    style={{
+                      backgroundColor: "var(--primary-color)",
+                      borderColor: "var(--primary-color)",
+                      borderRadius: "10px",
+                    }}
                   >
                     {loading ? (
                       <>

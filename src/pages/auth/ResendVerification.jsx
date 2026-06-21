@@ -1,7 +1,22 @@
-import  { useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Form, Button, Container, Row, Col, Card, Alert } from "react-bootstrap";
-import { FiMail, FiSend, FiArrowLeft, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import {
+  Form,
+  Button,
+  Container,
+  Row,
+  Col,
+  Card,
+  Alert,
+  Image,
+} from "react-bootstrap";
+import {
+  FiMail,
+  FiSend,
+  FiArrowLeft,
+  FiCheckCircle,
+  FiAlertCircle,
+} from "react-icons/fi";
 import { authAPI } from "../../api/auth";
 
 const ResendVerification = () => {
@@ -19,13 +34,16 @@ const ResendVerification = () => {
     try {
       const response = await authAPI.resendVerification(email);
       if (response.success) {
-        setMessage("Verification email has been sent to your address. Please check your inbox.");
+        setMessage(
+          "Verification email has been sent to your address. Please check your inbox."
+        );
       } else {
         setError(response.message || "Failed to send verification email");
       }
     } catch (err) {
       setError(
-        err.response?.data?.message || "Failed to send verification email. Please try again."
+        err.response?.data?.message ||
+          "Failed to send verification email. Please try again."
       );
     } finally {
       setLoading(false);
@@ -33,31 +51,48 @@ const ResendVerification = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center py-5" style={{ 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-    }}>
+    <div
+      className="min-vh-100 d-flex align-items-center py-5"
+     
+    >
       <Container>
         <Row className="justify-content-center">
           <Col md={6} lg={5}>
             <Card className="shadow-lg border-0 fade-in">
               <Card.Body className="p-5">
-                {/* Header */}
+                {/* Header with Logo */}
                 <div className="text-center mb-4">
+                  <Image
+                    src="/AmirsadLogoAuth.png"
+                    alt="AMIRSAD Gold"
+                    className="mb-3"
+                    style={{
+                      width: "150px",
+                      height: "150px",
+                      objectFit: "contain",
+                      borderRadius: "12px",
+                    }}
+                    fluid
+                  />
                   <div className="mb-3">
                     <FiMail size={48} className="text-warning" />
                   </div>
-                  <h2 className="fw-bold" style={{ color: 'var(--primary-color)' }}>
+                  <h2
+                    className="fw-bold"
+                    style={{ color: "var(--primary-color)" }}
+                  >
                     Resend Verification Email
                   </h2>
                   <p className="text-muted mt-2">
-                    Didn't receive the verification link? We'll send you a new one.
+                    Didn't receive the verification link? We'll send you a new
+                    one.
                   </p>
                 </div>
 
                 {/* Success Message */}
                 {message && (
-                  <Alert 
-                    variant="success" 
+                  <Alert
+                    variant="success"
                     className="d-flex align-items-center fade-in"
                     onClose={() => setMessage("")}
                     dismissible
@@ -69,8 +104,8 @@ const ResendVerification = () => {
 
                 {/* Error Message */}
                 {error && (
-                  <Alert 
-                    variant="danger" 
+                  <Alert
+                    variant="danger"
                     className="d-flex align-items-center fade-in"
                     onClose={() => setError("")}
                     dismissible
@@ -81,13 +116,17 @@ const ResendVerification = () => {
                 )}
 
                 {/* Info Box */}
-                <div className="bg-light p-3 rounded mb-4" style={{ 
-                  backgroundColor: 'var(--bg-secondary) !important',
-                  border: '1px solid var(--border-color)'
-                }}>
+                <div
+                  className="bg-light p-3 rounded mb-4"
+                  style={{
+                    backgroundColor: "var(--bg-secondary) !important",
+                    border: "1px solid var(--border-color)",
+                  }}
+                >
                   <p className="mb-0 small text-muted">
-                    <strong>Note:</strong> Please check your spam folder if you don't see the email in your inbox.
-                    The verification link expires in 24 hours.
+                    <strong>Note:</strong> Please check your spam folder if you
+                    don't see the email in your inbox. The verification link
+                    expires in 24 hours.
                   </p>
                 </div>
 
@@ -117,14 +156,18 @@ const ResendVerification = () => {
                     variant="warning"
                     className="w-100 py-2 fw-bold mb-3"
                     disabled={loading}
-                    style={{ 
-                      backgroundColor: 'var(--primary-color)',
-                      borderColor: 'var(--primary-color)'
+                    style={{
+                      backgroundColor: "var(--primary-color)",
+                      borderColor: "var(--primary-color)",
                     }}
                   >
                     {loading ? (
                       <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span
+                          className="spinner-border spinner-border-sm me-2"
+                          role="status"
+                          aria-hidden="true"
+                        ></span>
                         Sending Verification Email...
                       </>
                     ) : (
@@ -149,7 +192,7 @@ const ResendVerification = () => {
                 {/* Additional Help */}
                 <div className="text-center mt-3">
                   <p className="small text-muted mb-0">
-                    Need help?{' '}
+                    Need help?{" "}
                     <Link to="/contact-support" className="text-decoration-none">
                       Contact Support
                     </Link>

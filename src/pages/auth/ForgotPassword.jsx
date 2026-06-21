@@ -1,4 +1,4 @@
-// src/pages/auth/ForgotPassword.jsx - Premium Glass Version
+// src/pages/auth/ForgotPassword.jsx - Premium Glass Version with Logo
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -10,6 +10,7 @@ import {
   Col,
   Card,
   Alert,
+  Image,
 } from "react-bootstrap";
 import {
   FiSend,
@@ -65,7 +66,10 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center py-5">
+    <div
+      className="min-vh-100 d-flex align-items-center py-5"
+     
+    >
       {/* Animated Background Elements */}
       <div
         className="position-absolute w-100 h-100"
@@ -112,9 +116,21 @@ const ForgotPassword = () => {
               <Card.Body className="p-5">
                 {!emailSent ? (
                   <>
-                    {/* Header */}
+                    {/* Header with Logo */}
                     <div className="text-center mb-4">
-                      <div className="mb-3">
+                      <Image
+                        src="/AmirsadLogoAuth.png"
+                        alt="AMIRSAD Gold"
+                        className="mb-3"
+                        style={{
+                          width: "150px",
+                          height: "150px",
+                          objectFit: "contain",
+                          borderRadius: "12px",
+                        }}
+                        fluid
+                      />
+                      <div className="mb-2">
                         <div
                           className="bg-warning bg-opacity-10 rounded-circle d-inline-flex p-3"
                           style={{ width: "80px", height: "80px" }}
