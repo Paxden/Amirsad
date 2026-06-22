@@ -185,7 +185,7 @@ const ResetPassword = () => {
                   >
                     <FiShield size={40} className="text-warning m-auto" />
                   </div>
-                  <h2 className="fw-bold">Create New Password</h2>
+                  <h3 className="fw-bold">Create New Password</h3>
                   <p className="text-muted">
                     Secure your account with a strong password
                   </p>

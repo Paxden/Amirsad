@@ -77,12 +77,12 @@ const ResendVerification = () => {
                   <div className="mb-3">
                     <FiMail size={48} className="text-warning" />
                   </div>
-                  <h2
+                  <h3
                     className="fw-bold"
                     style={{ color: "var(--primary-color)" }}
                   >
                     Resend Verification Email
-                  </h2>
+                  </h3>
                   <p className="text-muted mt-2">
                     Didn't receive the verification link? We'll send you a new
                     one.

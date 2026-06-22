@@ -88,12 +88,12 @@ const Register = () => {
                     }}
                     fluid
                   />
-                  <h2
+                  <h3
                     className="fw-bold"
                     style={{ color: "var(--primary-color)" }}
                   >
                     Create Account
-                  </h2>
+                  </h3>
                   <p className="text-muted">
                     Join AMIRSAD Gold Trading Platform
                   </p>

@@ -174,12 +174,12 @@ const VerifyEmail = () => {
                     }}
                     fluid
                   />
-                  <h2
+                  <h3
                     className="fw-bold"
                     style={{ color: "var(--primary-color)" }}
                   >
                     Email Verification
-                  </h2>
+                  </h3>
                   <p className="text-muted">Confirm your email address to get started</p>
                 </div>
 
